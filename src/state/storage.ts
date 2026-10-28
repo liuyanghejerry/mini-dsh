@@ -33,6 +33,11 @@ function optionalString(value: unknown, name: string): string | undefined {
   return value
 }
 
+function optionalTime(value: unknown, name: string): number | undefined {
+  if (value === undefined) return undefined
+  return requiredTime(value, name)
+}
+
 function parseItem(value: unknown): TimelineItem {
   if (!isRecord(value)) throw new Error("Invalid timeline item")
   const id = requiredString(value.id, "item id")
@@ -97,6 +102,9 @@ function parseConversation(value: unknown): Conversation {
     dshHome: requiredString(value.dshHome, "session DSH_HOME"),
     configOptions: [],
     historyCached: value.historyCached !== false,
+    historyHasMore: value.historyHasMore === true,
+    historyThroughSeq: optionalTime(value.historyThroughSeq, "history through seq"),
+    historyBeforeSeq: optionalTime(value.historyBeforeSeq, "history before seq"),
     running: false,
     active: false,
     permissionPending: false,
@@ -127,6 +135,9 @@ function parse(value: unknown): PersistedChat {
       cwd: conversation.cwd,
       dshHome: conversation.dshHome,
       historyCached: conversation.historyCached,
+      historyHasMore: conversation.historyHasMore,
+      historyThroughSeq: conversation.historyThroughSeq,
+      historyBeforeSeq: conversation.historyBeforeSeq,
     })),
   }
 }

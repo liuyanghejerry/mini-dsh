@@ -19,12 +19,14 @@ Vue 3 + TypeScript + Animal Island
                 │
              GPUIV / GPUI
                 │
-       Agent Client Protocol SDK
-                │
-       官方 dsh（--profile acp）
+       ┌────────┴────────┐
+       │                 │
+Agent Client Protocol   官方 Web 只读接口
+       │                 │
+       └──── 官方 dsh ────┘
 ```
 
-mini dsh 只维护桌面界面、ACP 适配和界面缓存，不另行实现一套 Agent harness。
+mini dsh 只维护桌面界面、ACP 执行适配、官方 Web 只读历史适配和界面缓存，不另行实现一套 Agent harness。
 
 ## 数据与迁移
 
@@ -33,7 +35,7 @@ mini dsh 只维护桌面界面、ACP 适配和界面缓存，不另行实现一�
 - 不同 home 的会话分别显示，旧目录中的缓存不会删除。
 - 凭据和官方会话由 dsh 管理，mini dsh 不复制或解析官方凭据文件。
 - 界面缓存独立保存在当前工作目录的 `.mini-dsh/ui-v2.json`。
-- ACP 可以恢复会话并继续对话，但不回放早期消息；这些会话会显示相应提示。
+- ACP 负责恢复会话、继续对话和权限控制，不回放早期消息；真实标题与历史通过官方 dsh Web 的只读 Session Controller 获取，不打开浏览器。
 - 官方 Web 特有的插件、profile 和完整工作台面不保证自动迁移。避免在两个客户端中同时写入同一会话。
 
 ## 从源码运行

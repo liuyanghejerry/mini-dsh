@@ -5,12 +5,15 @@ import type { RequestPermissionRequest, RequestPermissionResponse, SessionConfig
 import { DshRuntime } from "../services/dsh-runtime"
 import { applyAcpUpdate, lastAssistant } from "../services/dsh-events"
 import { officialDshHome } from "../services/dsh-home"
+import { DshWebReader } from "../services/dsh-web-reader"
+import type { DshHistoryPage, DshHistoryReader, DshSessionSummary } from "../services/dsh-history"
 import { createChatStorage, type ChatStorage } from "./storage"
 import type { ChatMessage, ConfigChoice, Conversation, PersistedChat } from "../types"
 
 export interface ChatStoreOptions {
   storage?: ChatStorage
   runtime?: DshRuntime
+  history?: DshHistoryReader
   environmentApiKey?: string
   baseUrl?: string
   workspace?: string
@@ -88,6 +91,11 @@ export function createChatStore(options: ChatStoreOptions = {}) {
   const reasoning = ref(initial?.reasoning ?? "high")
   const workspace = ref(options.workspace ?? initial?.workspace ?? process.cwd())
   const dshHome = ref(runtimeHome)
+  const history = options.history ?? (options.runtime ? undefined : new DshWebReader({
+    workspace: workspace.value,
+    dshHome: runtimeHome,
+    dshBin: options.dshBin,
+  }))
   const connectionMode = ref<"starting" | "ready" | "error">("starting")
   const notice = ref<string | null>(restored.error)
   const pendingPermission = ref<PendingPermission | null>(null)
@@ -139,6 +147,9 @@ export function createChatStore(options: ChatStoreOptions = {}) {
         cwd: conversation.cwd,
         dshHome: conversation.dshHome,
         historyCached: conversation.historyCached,
+        historyHasMore: conversation.historyHasMore,
+        historyThroughSeq: conversation.historyThroughSeq,
+        historyBeforeSeq: conversation.historyBeforeSeq,
       })),
     }
   }
@@ -243,8 +254,8 @@ export function createChatStore(options: ChatStoreOptions = {}) {
 
   runtime = options.runtime ?? createRuntime()
 
-  function fromSession(info: SessionInfo): Conversation {
-    const updatedAt = info.updatedAt ? Date.parse(info.updatedAt) : Date.now()
+  function fromSession(info: SessionInfo | DshSessionSummary): Conversation {
+    const updatedAt = typeof info.updatedAt === "number" ? info.updatedAt : info.updatedAt ? Date.parse(info.updatedAt) : Date.now()
     return {
       id: info.sessionId,
       sessionId: info.sessionId,
@@ -265,7 +276,17 @@ export function createChatStore(options: ChatStoreOptions = {}) {
   async function initialize() {
     try {
       await runtime.start()
-      const sessions = await runtime.listSessions()
+      let sessions: Array<SessionInfo | DshSessionSummary>
+      if (history) {
+        try {
+          sessions = await history.listSessions()
+        } catch (error) {
+          fail(new Error(`官方历史列表读取失败：${errorMessage(error, [runtimeApiKey, options.baseUrl ?? ""])}`))
+          sessions = await runtime.listSessions()
+        }
+      } else {
+        sessions = await runtime.listSessions()
+      }
       const current = conversations.value.filter(item => item.dshHome === runtimeHome)
       const draft = current.length === 1 ? current[0] : undefined
       if (!cachedConversations.length && sessions.length && draft
@@ -279,13 +300,15 @@ export function createChatStore(options: ChatStoreOptions = {}) {
           if (existing) {
             if (info.title) existing.title = info.title
             existing.cwd = info.cwd
-            if (info.updatedAt) existing.updatedAt = Date.parse(info.updatedAt)
+            if (info.updatedAt) existing.updatedAt = typeof info.updatedAt === "number" ? info.updatedAt : Date.parse(info.updatedAt)
           } else {
             conversations.value.push(fromSession(info))
           }
         }
       }
       connectionMode.value = "ready"
+      scheduleSave()
+      if (active.value.sessionId) void prepare(active.value).catch(fail)
     } catch (error) {
       runtimeFailed = true
       connectionMode.value = "error"
@@ -305,6 +328,50 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     await initialize()
   }
 
+  function mergeHistory(conversation: Conversation, page: DshHistoryPage) {
+    const existing = new Set(conversation.items.map(item => item.id))
+    conversation.items = [...page.items.filter(item => !existing.has(item.id)), ...conversation.items]
+    if (page.title) conversation.title = page.title
+  }
+
+  async function readInitialHistory(conversation: Conversation) {
+    if (!history || conversation.historyCached || !conversation.sessionId) return
+    conversation.historyLoading = true
+    try {
+      const page = await history.readHistory(conversation.sessionId)
+      mergeHistory(conversation, page)
+      conversation.historyCached = true
+      conversation.historyHasMore = page.hasMore
+      conversation.historyThroughSeq = page.throughSeq
+      conversation.historyBeforeSeq = page.beforeSeq
+      conversation.historyError = undefined
+      scheduleSave()
+    } catch (error) {
+      conversation.historyError = `官方历史读取失败：${errorMessage(error, [runtimeApiKey, options.baseUrl ?? ""])}`
+    } finally {
+      conversation.historyLoading = false
+    }
+  }
+
+  async function loadOlder() {
+    const conversation = active.value
+    if (!history || conversation.historyLoading || !conversation.historyHasMore || !conversation.sessionId) return
+    if (conversation.historyThroughSeq === undefined || conversation.historyBeforeSeq === undefined) return
+    conversation.historyLoading = true
+    try {
+      const page = await history.readHistory(conversation.sessionId, conversation.historyThroughSeq, conversation.historyBeforeSeq)
+      mergeHistory(conversation, page)
+      conversation.historyHasMore = page.hasMore
+      conversation.historyBeforeSeq = page.beforeSeq
+      conversation.historyError = undefined
+      scheduleSave()
+    } catch (error) {
+      conversation.historyError = `更早的历史读取失败：${errorMessage(error, [runtimeApiKey, options.baseUrl ?? ""])}`
+    } finally {
+      conversation.historyLoading = false
+    }
+  }
+
   async function prepare(conversation: Conversation): Promise<string> {
     if (conversation.dshHome !== runtimeHome) throw new Error("这个会话属于另一个 DSH_HOME，请新建会话或切回原来的 Harness home")
     if (conversation.sessionId && conversation.active) return conversation.sessionId
@@ -312,6 +379,8 @@ export function createChatStore(options: ChatStoreOptions = {}) {
       conversation.preparing = (async () => {
         if (runtimeFailed) await restart()
         await runtime.start()
+        const isNew = !conversation.sessionId
+        if (!isNew) await readInitialHistory(conversation)
         if (conversation.sessionId) {
           const resumed = await runtime.resumeSession(conversation.sessionId, conversation.cwd)
           if (resumed.configOptions) conversation.configOptions = resumed.configOptions
@@ -321,10 +390,12 @@ export function createChatStore(options: ChatStoreOptions = {}) {
           conversation.configOptions = created.configOptions ?? []
         }
         conversation.active = true
-        for (const [id, value] of [["model", model.value], ["reasoning_effort", reasoning.value]] as const) {
-          if (currentValue(conversation, id) !== value) {
-            const result = await runtime.setConfig(conversation.sessionId!, id, value)
-            conversation.configOptions = result.configOptions
+        if (isNew) {
+          for (const [id, value] of [["model", model.value], ["reasoning_effort", reasoning.value]] as const) {
+            if (currentValue(conversation, id) !== value) {
+              const result = await runtime.setConfig(conversation.sessionId!, id, value)
+              conversation.configOptions = result.configOptions
+            }
           }
         }
       })()
@@ -531,7 +602,7 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     pendingPermission.value = null
     persistNow()
     runtimeApiKey = ""
-    disposePromise = runtime.close()
+    disposePromise = Promise.all([runtime.close(), history?.close()]).then(() => undefined)
     return disposePromise
   }
 
@@ -563,6 +634,7 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     send,
     retry,
     stop,
+    loadOlder,
     newConversation,
     selectConversation,
     deleteConversation,

@@ -156,6 +156,7 @@ export const Transcript = defineComponent({
     conversation: { type: Object as PropType<Conversation>, required: true },
     onRetry: { type: Function as PropType<() => void>, required: true },
     onPrompt: { type: Function as PropType<(text: string) => void>, required: true },
+    onLoadOlder: { type: Function as PropType<() => void>, required: true },
   },
   setup(props) {
     const list = ref<VirtualListInstance | null>(null)
@@ -170,8 +171,15 @@ export const Transcript = defineComponent({
       const conversation = props.conversation
       if (!conversation.items.length && conversation.historyCached) return <EmptyState onPrompt={props.onPrompt} />
       return <div testId="message-list" style={{ display: "flex", flexDirection: "column", flexGrow: 1, flexBasis: 0, minHeight: 0, width: "100%" }}>
-        {!conversation.historyCached ? <div testId="history-notice" style={{ flexShrink: 0, margin: 16, marginBottom: 0, padding: 12, borderRadius: 14, backgroundColor: "#f5f0e5" }}>
-          <text style={{ fontSize: 12, lineHeight: 19, color: palette.muted }}>已连接 dsh 会话。ACP 不回放早期消息，新的执行与回复会显示在这里。</text>
+        {conversation.historyHasMore ? <div style={{ display: "flex", justifyContent: "center", flexShrink: 0, marginTop: 10 }}>
+          <Button testId="load-older" type="text" size="small" loading={conversation.historyLoading} onClick={props.onLoadOlder}>
+            {{ default: () => <text>加载更早消息</text> }}
+          </Button>
+        </div> : null}
+        {!conversation.historyCached || conversation.historyError ? <div testId="history-notice" style={{ flexShrink: 0, margin: 16, marginBottom: 0, padding: 12, borderRadius: 14, backgroundColor: "#f5f0e5" }}>
+          <text style={{ fontSize: 12, lineHeight: 19, color: palette.muted }}>{conversation.historyLoading && !conversation.historyCached
+            ? "正在读取 dsh 历史…"
+            : conversation.historyError ?? "尚未读取早期消息；新的执行与回复会显示在这里。"}</text>
         </div> : null}
         <VirtualList ref={list} itemCount={conversation.items.length} estimatedItemHeight={160} overdraw={280} alignment="bottom" followTail
           style={{ flexGrow: 1, flexBasis: 0, minHeight: 0, width: "100%" }}

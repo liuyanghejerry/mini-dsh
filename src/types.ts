@@ -51,6 +51,11 @@ export interface Conversation {
   dshHome: string
   configOptions: SessionConfigOption[]
   historyCached: boolean
+  historyHasMore?: boolean
+  historyThroughSeq?: number
+  historyBeforeSeq?: number
+  historyLoading?: boolean
+  historyError?: string
   running: boolean
   active: boolean
   permissionPending: boolean
@@ -60,7 +65,7 @@ export interface Conversation {
 }
 
 export type PersistedConversation = Omit<Conversation,
-  "running" | "active" | "permissionPending" | "preparing" | "currentAssistantId" | "stopRequested" | "configOptions"
+  "running" | "active" | "permissionPending" | "preparing" | "currentAssistantId" | "stopRequested" | "configOptions" | "historyLoading" | "historyError"
 >
 
 export interface PersistedChat {
