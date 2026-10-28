@@ -1,6 +1,7 @@
 import { defineComponent, onBeforeUnmount, ref } from "vue"
-import { Button, Tag, Tooltip, fonts, loadAnimalIslandFonts, provideTheme } from "@gpuiv/animal-island"
+import { Button, Tag, Tooltip, fonts, provideTheme } from "@gpuiv/animal-island"
 import { useGpuix } from "@gpuiv/vue"
+import { loadMiniDshFonts } from "./services/animal-fonts"
 import { createChatStore } from "./state/chat"
 import { Composer } from "./components/Composer"
 import { Glyph } from "./components/Glyph"
@@ -15,7 +16,7 @@ export const App = defineComponent({
   name: "MiniDshApp",
   setup() {
     const { renderer } = useGpuix()
-    loadAnimalIslandFonts(renderer)
+    loadMiniDshFonts(renderer)
     provideTheme()
     const store = createChatStore()
     const settingsOpen = ref(false)
