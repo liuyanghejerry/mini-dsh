@@ -147,7 +147,7 @@ export class DshRuntime {
     const sessions: SessionInfo[] = []
     let cursor: string | undefined
     for (let page = 0; page < 20; page++) {
-      const result = await agent.request(methods.agent.session.list, { cwd: this.options.workspace, ...(cursor ? { cursor } : {}) })
+      const result = await agent.request(methods.agent.session.list, { ...(cursor ? { cursor } : {}) })
       sessions.push(...result.sessions)
       if (!result.nextCursor) break
       cursor = result.nextCursor
