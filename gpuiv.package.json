@@ -1,0 +1,9 @@
+{
+  "entry": "./src/main.tsx",
+  "productName": "mini-dsh",
+  "bundleId": "dev.gpuiv.mini-dsh",
+  "version": "0.1.0",
+  "description": "A tiny DeepSeek desktop chat built with Vue 3, GPUIV and Animal Island.",
+  "targets": ["linux-x64"],
+  "smokeTestId": null
+}

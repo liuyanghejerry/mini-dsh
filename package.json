@@ -1,0 +1,33 @@
+{
+  "name": "mini-dsh",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liuyanghejerry/mini-dsh.git"
+  },
+  "type": "module",
+  "description": "A tiny DeepSeek desktop chat built with Vue 3, GPUIV and Animal Island.",
+  "scripts": {
+    "dev": "bun --preload ./node_modules/@gpuiv/vue/hmr-preload.js --hot src/main.tsx",
+    "start": "NODE_ENV=production bun src/main.tsx",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "setup:dsh": "bun scripts/install-dsh.ts",
+    "package": "bun scripts/package.ts",
+    "package:appimage": "bun scripts/package.ts --appimage",
+    "postinstall": "bun scripts/link-local.ts"
+  },
+  "gpuiv": {
+    "root": "../gpuiv"
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "1.4.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "typescript": "^5.3.0"
+  }
+}

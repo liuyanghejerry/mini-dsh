@@ -1,0 +1,47 @@
+mini-dsh
+Copyright (c) 2026 mini-dsh contributors
+
+The original mini-dsh source code is licensed under the MIT License in LICENSE.
+Third-party software and assets remain under their respective licenses. This
+notice is not a replacement for the complete upstream notices in licenses/.
+
+GPUIV
+https://github.com/liuyanghejerry/gpuiv
+Apache-2.0. mini-dsh uses GPUIV's Vue renderer, native binding, packager and
+Animal Island port. GPUIV's own third-party notices preserve GPUIX, GPUI,
+Comet, Tree-sitter and other upstream credits. See licenses/Apache-2.0.txt
+and licenses/GPUIV-THIRD_PARTY_NOTICES.md.
+
+Animal Island Vue and Animal Island UI
+https://github.com/guokaigdg/animal-island-vue
+https://github.com/guokaigdg/animal-island-ui
+Copyright (c) 2026 guokaigdg. MIT license texts are preserved in
+licenses/Animal-Island-Vue-LICENSE.txt and licenses/Animal-Island-UI-LICENSE.txt.
+The GPUIV third-party notice records the author's learning and non-commercial
+use constraint, and this distribution retains that constraint. The MIT license
+of mini-dsh's original code does not remove that third-party constraint.
+
+Animal Island fonts
+Nunito: Copyright 2014 The Nunito Project Authors.
+Noto Sans SC: Copyright 2014-2021 Adobe.
+Both are distributed under SIL Open Font License 1.1. See licenses/fonts/.
+
+Vue
+https://github.com/vuejs/core
+Copyright (c) 2018-present, Yuxi (Evan) You and Vue contributors. MIT.
+See licenses/Vue-LICENSE.txt.
+
+DeepSeek Harness
+https://github.com/deepseek-ai/deepseek-harness
+Copyright (c) 2026 DeepSeek. MIT. mini-dsh bundles the pinned official dsh
+runtime and its ripgrep sidecar. Their own dependency notices are preserved in
+licenses/dsh-THIRD_PARTY_NOTICES.md; see licenses/dsh-LICENSE.txt.
+
+Agent Client Protocol TypeScript SDK
+https://github.com/agentclientprotocol/typescript-sdk
+Zed Industries. Apache-2.0. The common Apache-2.0 text is preserved in
+licenses/Apache-2.0.txt.
+
+AppImage build-time wrapper
+AppImage appimagetool and type2-runtime retain their own licenses and notices.
+They are build-time packaging infrastructure, not a change to mini-dsh's license.

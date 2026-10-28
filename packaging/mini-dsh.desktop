@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=mini dsh
+Comment=A small DeepSeek desktop chat powered by dsh
+Comment[zh_CN]=基于 dsh 的 DeepSeek 桌面精简客户端
+Exec=mini-dsh
+Icon=mini-dsh
+Terminal=false
+Categories=Network;Chat;
+Keywords=DeepSeek;AI;Chat;
