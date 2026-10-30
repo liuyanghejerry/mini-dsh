@@ -14,5 +14,6 @@ const app = createApp(App, {
   height: 820,
   titlebarTransparent: true,
   focus: process.env.GPUIX_BACKGROUND !== "1",
+  onRuntimeError: (error, info) => { console.error(`[mini-dsh] ${info}`, error) },
   onWindowShouldClose: () => { void closeApplication() },
 })

@@ -1,9 +1,17 @@
-import { defineComponent, nextTick, onBeforeUnmount, ref, watch, type PropType } from "vue"
+import { defineComponent, onBeforeUnmount, onMounted, ref, watch, type PropType } from "vue"
 import { Button, Card, Icon, Tag, activationKeys } from "@gpuiv/animal-island"
 import { VirtualList, useGpuix, type EventPayload, type VirtualListInstance } from "@gpuiv/vue"
 import type { ChatMessage, Conversation, ToolActivity } from "../types"
 import { markdownTheme, palette, reasoningTheme } from "../theme"
 import { Glyph } from "./Glyph"
+import { resolve, isAbsolute } from "node:path"
+
+function resolveImages(source: string, cwd: string): string {
+  return source.replace(/(!\[[^\]]*\]\()([^\s)]+)(\s*(?:"[^"]*")?\))/g, (match, prefix: string, url: string, suffix: string) => {
+    if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(url) || isAbsolute(url)) return match
+    return `${prefix}${resolve(cwd, url)}${suffix}`
+  })
+}
 
 const suggestions = [
   { icon: "Rocket", color: "app-teal", title: "认识 dsh", prompt: "介绍一下你正在使用的 dsh harness，以及你能调用的工具" },
@@ -67,7 +75,7 @@ const ToolRow = defineComponent({
             {{ default: () => <text>{activity.status === "completed" ? "已完成" : activity.status === "failed" ? "失败" : activity.status === "in_progress" ? "执行中" : "等待"}</text> }}
           </Tag>
         </div>
-        {expanded.value ? <text style={{ marginTop: 8, fontSize: 11, lineHeight: 18, color: palette.muted }}>{detail(activity)}</text> : null}
+        {expanded.value ? <text style={{ userSelect: "text", marginTop: 8, fontSize: 11, lineHeight: 18, color: palette.muted }}>{detail(activity)}</text> : null}
       </div>
     }
   },
@@ -78,6 +86,7 @@ const MessageRow = defineComponent({
     message: { type: Object as PropType<ChatMessage>, required: true },
     latest: { type: Boolean, default: false },
     onRetry: { type: Function as PropType<() => void>, required: true },
+    cwd: { type: String, required: true },
   },
   setup(props) {
     const { renderer } = useGpuix()
@@ -100,7 +109,7 @@ const MessageRow = defineComponent({
       if (item.role === "user") {
         return <div testId={`message-${item.id}`} style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", width: "100%", paddingTop: 14, paddingBottom: 14, paddingLeft: 32, paddingRight: 32 }}>
           <div style={{ maxWidth: "82%", paddingTop: 11, paddingBottom: 11, paddingLeft: 17, paddingRight: 17, borderRadius: 18, backgroundColor: palette.user }}>
-            <text style={{ fontSize: 14, lineHeight: 23, color: palette.body }}>{item.content}</text>
+            <text style={{ userSelect: "text", fontSize: 14, lineHeight: 23, color: palette.body }}>{item.content}</text>
           </div>
           <Button testId={`copy-user-${item.id}`} type="text" size="small" aria-label={copied.value ? "已复制用户消息" : "复制用户消息"}
             onClick={copy} icon={<Glyph name={copied.value ? "check" : "copy"} size={13} />}
@@ -126,16 +135,16 @@ const MessageRow = defineComponent({
               <Glyph name={showReasoning.value ? "down" : "right"} size={12} color={palette.muted} />
               <text style={{ fontSize: 12, fontWeight: 700, color: palette.muted }}>思考过程</text>
             </div>
-            {showReasoning.value ? <div style={{ marginTop: 6 }}><markdown source={item.reasoning} theme={reasoningTheme} onLinkClick={openLink} /></div> : null}
+            {showReasoning.value ? <div style={{ marginTop: 6 }}><markdown style={{ userSelect: "text" }} source={item.reasoning} theme={reasoningTheme} onLinkClick={openLink} /></div> : null}
           </div> : null}
-          <div style={{ display: "flex", flexDirection: "column", marginTop: 8, padding: 16, borderRadius: 17, backgroundColor: palette.paper }}>
-            {item.content ? <markdown source={item.content} theme={markdownTheme} onLinkClick={openLink} /> : null}
+          {item.content || item.status !== "done" ? <div style={{ display: "flex", flexDirection: "column", marginTop: 8, padding: 16, borderRadius: 17, backgroundColor: palette.paper }}>
+            {item.content ? <markdown style={{ userSelect: "text" }} source={resolveImages(item.content, props.cwd)} theme={markdownTheme} onLinkClick={openLink} /> : null}
             {!item.content && item.status === "streaming" ? <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 32 }}>
               <Icon name="Star" size={23} />
               <text style={{ fontSize: 13, color: palette.muted }}>{item.reasoning ? "正在整理回答…" : "等待 dsh 返回…"}</text>
             </div> : null}
             {item.status === "error" ? <div role="alert" style={{ marginTop: item.content ? 12 : 0, padding: 12, borderRadius: 12, backgroundColor: palette.errorBg }}>
-              <text style={{ fontSize: 13, lineHeight: 20, color: palette.error }}>{item.error ?? "执行失败，请检查 dsh 连接后重试。"}</text>
+              <text style={{ userSelect: "text", fontSize: 13, lineHeight: 20, color: palette.error }}>{item.error ?? "执行失败，请检查 dsh 连接后重试。"}</text>
             </div> : null}
             {item.status === "stopped" ? <text style={{ marginTop: item.content ? 10 : 0, fontSize: 12, color: palette.muted }}>已停止生成{!item.content ? "，这次没有收到内容" : "，已保留当前内容"}。</text> : null}
             {item.status === "done" || item.status === "stopped" ? <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6 }}>
@@ -144,7 +153,7 @@ const MessageRow = defineComponent({
               <div style={{ flexGrow: 1 }} />
               {item.usage ? <text style={{ fontSize: 10, color: palette.muted }}>{`${item.usage.totalTokens} / ${item.usage.contextSize ?? "—"} tokens`}</text> : null}
             </div> : null}
-          </div>
+          </div> : null}
         </div>
       </div>
     }
@@ -160,13 +169,60 @@ export const Transcript = defineComponent({
   },
   setup(props) {
     const list = ref<VirtualListInstance | null>(null)
-    const scrollToLatest = () => {
-      void nextTick(() => queueMicrotask(() => {
-        if (props.conversation.items.length) list.value?.scrollToItem(props.conversation.items.length - 1)
-      }))
+    const { renderer } = useGpuix()
+    let visible = { start: 0, end: 0 }
+    const heights = new Map<string, number>()
+    const bar = ref({ total: 1, viewport: 1, offset: 0 })
+    let width = 0
+    let timer: ReturnType<typeof setInterval> | undefined
+    function rowHeight(index: number): number {
+      const item = props.conversation.items[index]
+      return item ? heights.get(item.id) ?? 160 : 0
     }
-    watch(() => props.conversation.id, scrollToLatest, { flush: "post" })
-    watch(() => props.conversation.items.length, scrollToLatest, { flush: "post" })
+    function updateScrollbar() {
+      const id = list.value?.id
+      const anchor = list.value?.getListScrollTop()
+      if (id == null || !anchor) return
+      const bounds = renderer?.getElementBounds?.(id)
+      if (bounds && bounds.width !== width) {
+        width = bounds.width
+        heights.clear()
+      }
+      for (let i = visible.start; i < visible.end; i++) {
+        const geometry = renderer?.getVirtualListGeometry?.(id, i)
+        const item = props.conversation.items[i]
+        if (item && geometry && geometry.length >= 9 && geometry[8]! > 0) heights.set(item.id, geometry[8]!)
+      }
+      let total = 0
+      let offset = 0
+      for (let i = 0; i < props.conversation.items.length; i++) {
+        const height = rowHeight(i)
+        total += height
+        if (i < anchor.itemIndex) offset += height
+      }
+      const viewport = anchor.viewportHeight
+      offset = anchor.atEnd ? Math.max(0, total - viewport) : Math.max(0, Math.min(total - viewport, offset + anchor.offsetInItem))
+      if (bar.value.total !== total || bar.value.viewport !== viewport || bar.value.offset !== offset) bar.value = { total, viewport, offset }
+    }
+    onMounted(() => { timer = setInterval(updateScrollbar, 100) })
+    onBeforeUnmount(() => { if (timer) clearInterval(timer) })
+    watch(() => props.conversation.id, () => {
+      heights.clear()
+      visible = { start: 0, end: 0 }
+      bar.value = { total: 1, viewport: 1, offset: 0 }
+    })
+    function navigate(event: EventPayload) {
+      if (event.y == null || !props.conversation.items.length) return
+      const id = list.value?.id
+      const bounds = id == null ? null : renderer?.getElementBounds?.(id)
+      if (!bounds || bounds.height <= 0) return
+      const thumb = Math.min(bounds.height, Math.max(20, bounds.height * bar.value.viewport / Math.max(1, bar.value.total)))
+      const fraction = Math.max(0, Math.min(1, (event.y - bounds.y - thumb / 2) / Math.max(1, bounds.height - thumb)))
+      let offset = fraction * Math.max(0, bar.value.total - bar.value.viewport)
+      let index = 0
+      while (index < props.conversation.items.length - 1 && offset >= rowHeight(index)) offset -= rowHeight(index++)
+      list.value?.scrollToItem(index, offset)
+    }
     return () => {
       const conversation = props.conversation
       if (!conversation.items.length && conversation.historyCached) return <EmptyState onPrompt={props.onPrompt} />
@@ -181,14 +237,28 @@ export const Transcript = defineComponent({
             ? "正在读取 dsh 历史…"
             : conversation.historyError ?? "尚未读取早期消息；新的执行与回复会显示在这里。"}</text>
         </div> : null}
-        <VirtualList ref={list} itemCount={conversation.items.length} estimatedItemHeight={160} overdraw={280} alignment="bottom" followTail
+        <div style={{ display: "flex", flexDirection: "row", flexGrow: 1, flexBasis: 0, minHeight: 0 }}>
+        <VirtualList key={conversation.id} ref={list} itemCount={conversation.items.length} estimatedItemHeight={160} overdraw={280} alignment="bottom" followTail
           style={{ flexGrow: 1, flexBasis: 0, minHeight: 0, width: "100%" }}
+          onVisibleRange={(event: EventPayload) => {
+            const start = event.startIndex ?? 0
+            const end = event.endIndex ?? 0
+            visible = { start, end }
+          }}
           renderItem={(index: number) => {
             const item = conversation.items[index]
             if (!item) return null
             if (item.kind === "tool") return <ToolRow key={item.id} activity={item} />
-            return <MessageRow key={item.id} message={item} latest={index === conversation.items.length - 1} onRetry={props.onRetry} />
+            return <MessageRow key={item.id} message={item} cwd={conversation.cwd} latest={index === conversation.items.length - 1} onRetry={props.onRetry} />
           }} />
+        {bar.value.total > bar.value.viewport ? <div role="scrollbar" aria-label="对话滚动条" aria-orientation="vertical" onMouseDown={navigate} onMouseMove={(event: EventPayload) => { if (event.pressedButton === 0) navigate(event) }}
+          style={{ width: 14, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", backgroundColor: "#eee9df", cursor: "pointer" }}>
+          <div style={{ flexGrow: bar.value.offset, flexBasis: 0 }} />
+          <div style={{ width: 6, borderRadius: 3, backgroundColor: palette.muted, minHeight: 20,
+            flexGrow: Math.min(bar.value.total, bar.value.viewport), flexBasis: 0 }} />
+          <div style={{ flexGrow: Math.max(0, bar.value.total - bar.value.viewport - bar.value.offset), flexBasis: 0 }} />
+        </div> : null}
+        </div>
       </div>
     }
   },

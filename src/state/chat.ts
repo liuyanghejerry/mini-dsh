@@ -308,7 +308,7 @@ export function createChatStore(options: ChatStoreOptions = {}) {
       }
       connectionMode.value = "ready"
       scheduleSave()
-      if (active.value.sessionId) void prepare(active.value).catch(fail)
+      if (active.value.sessionId) void readInitialHistory(active.value, true)
     } catch (error) {
       runtimeFailed = true
       connectionMode.value = "error"
@@ -334,12 +334,15 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     if (page.title) conversation.title = page.title
   }
 
-  async function readInitialHistory(conversation: Conversation) {
-    if (!history || conversation.historyCached || !conversation.sessionId) return
+  async function readInitialHistory(conversation: Conversation, refresh = false) {
+    if (!history || conversation.historyLoading || conversation.running || (!refresh && conversation.historyCached) || !conversation.sessionId) return
     conversation.historyLoading = true
     try {
       const page = await history.readHistory(conversation.sessionId)
-      mergeHistory(conversation, page)
+      if (disposed || conversation.running) return
+      // A fresh latest page replaces the old snapshot and its pagination cursor.
+      conversation.items = page.items
+      if (page.title) conversation.title = page.title
       conversation.historyCached = true
       conversation.historyHasMore = page.hasMore
       conversation.historyThroughSeq = page.throughSeq
@@ -415,7 +418,7 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     activeId.value = conversation.id
     query.value = ""
     scheduleSave()
-    void prepare(conversation).catch(fail)
+    void readInitialHistory(conversation, true)
   }
 
   function selectConversation(id: string) {
@@ -423,7 +426,7 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     if (!conversation) return
     activeId.value = id
     scheduleSave()
-    void prepare(conversation).catch(fail)
+    void readInitialHistory(conversation, true)
   }
 
   async function send(text = active.value.draft ?? "") {

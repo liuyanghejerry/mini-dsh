@@ -28,7 +28,7 @@ export const Composer = defineComponent({
             onChange={(event: EventPayload) => { store.draft.value = event.value ?? "" }}
             onSubmit={(event: EventPayload) => submit(event.value ?? store.draft.value)}
             onCompositionStart={() => { composing.value = true }} onCompositionEnd={() => { composing.value = false }}
-            style={{ width: "100%", minWidth: 0, fontSize: 15, lineHeight: 24, color: palette.body, fontFamily: fonts.sans, paddingLeft: 18, paddingRight: 18, backgroundColor: "transparent", borderWidth: 0 }} />
+            style={{ userSelect: "text", width: "100%", minWidth: 0, fontSize: 15, lineHeight: 24, color: palette.body, fontFamily: fonts.sans, paddingLeft: 18, paddingRight: 18, backgroundColor: "transparent", borderWidth: 0 }} />
           <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 10, paddingLeft: 12, paddingRight: 12 }}>
             <Select testId="model-select" size="small" options={store.modelOptions.value.map(option => ({ key: option.key, label: option.label }))} value={store.model.value}
               disabled={streaming} onChange={(value: string) => { void store.setModel(value) }}

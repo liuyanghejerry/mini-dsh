@@ -22,7 +22,7 @@ export const App = defineComponent({
     const settingsOpen = ref(false)
     onBeforeUnmount(store.dispose)
     return () => <div testId="app-root" style={{
-      position: "relative", display: "flex", flexDirection: "row", alignItems: "stretch",
+      userSelect: "none", position: "relative", display: "flex", flexDirection: "row", alignItems: "stretch",
       width: "100%", height: "100%", backgroundColor: palette.cream, color: palette.body,
       fontFamily: fonts.sans,
     }}>
@@ -43,7 +43,7 @@ export const App = defineComponent({
           {process.platform !== "darwin" ? <WindowControls /> : null}
         </div>
         {store.notice.value ? <div testId="storage-notice" role="alert" style={{ flexShrink: 0, paddingTop: 9, paddingBottom: 9, paddingLeft: 20, paddingRight: 20, backgroundColor: palette.errorBg }}>
-          <text style={{ fontSize: 12, lineHeight: 18, color: palette.error }}>{store.notice.value}</text>
+          <text style={{ userSelect: "text", fontSize: 12, lineHeight: 18, color: palette.error }}>{store.notice.value}</text>
         </div> : null}
         <Transcript conversation={store.active.value} onRetry={store.retry} onPrompt={store.send} onLoadOlder={store.loadOlder} />
         <Composer store={store} />

@@ -50,7 +50,7 @@ export const SettingsDialog = defineComponent({
     }
     return () => <Modal open={props.open} title="连接 dsh" width={560} variant="default" typewriter={false} footer={null}
       onClose={props.onClose} {...{ "onUpdate:open": (open: boolean) => { if (!open) props.onClose() } }}>
-      {{ default: () => <div style={{ display: "flex", flexDirection: "column" }}>
+      {{ default: () => <div style={{ userSelect: "none", display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
           <Icon name="Tree" size={30} />
           <text style={{ flexGrow: 1, fontSize: 13, lineHeight: 20, color: palette.body }}>由官方 dsh 管理 Agent、工具与会话。</text>
@@ -59,12 +59,12 @@ export const SettingsDialog = defineComponent({
         <text style={{ fontSize: 12, fontWeight: 700, color: palette.body }}>API Key</text>
         <Input testId="api-key" type="password" modelValue={keyDraft.value} onChange={(value: string) => { keyDraft.value = value }}
           onSubmit={() => { void save() }} allowClear autoFocus placeholder={props.store.hasEnvironmentKey ? "留空使用环境变量或 dsh 凭据" : "输入 DeepSeek API Key"}
-          style={{ marginTop: 10, marginBottom: 10 }} />
+          style={{ userSelect: "text", marginTop: 10, marginBottom: 10 }} />
         <text style={{ fontSize: 12, lineHeight: 20, color: palette.muted }}>留空保留已有设置。密钥只传入 dsh 子进程，不写入界面缓存；也可使用 dsh 已保存的凭据。</text>
         <text style={{ marginTop: 16, fontSize: 12, fontWeight: 700, color: palette.body }}>工作区</text>
-        <Input testId="workspace-input" modelValue={workspaceDraft.value} onChange={(value: string) => { workspaceDraft.value = value }} style={{ marginTop: 10 }} />
+        <Input testId="workspace-input" modelValue={workspaceDraft.value} onChange={(value: string) => { workspaceDraft.value = value }} style={{ userSelect: "text", marginTop: 10 }} />
         <text style={{ marginTop: 16, fontSize: 12, fontWeight: 700, color: palette.body }}>DSH_HOME</text>
-        <Input testId="dsh-home-input" modelValue={homeDraft.value} onChange={(value: string) => { homeDraft.value = value }} style={{ marginTop: 10 }} />
+        <Input testId="dsh-home-input" modelValue={homeDraft.value} onChange={(value: string) => { homeDraft.value = value }} style={{ userSelect: "text", marginTop: 10 }} />
         <Button testId="use-official-dsh-home" type="link" size="small" onClick={() => { homeDraft.value = officialDshHome() }}
           style={{ alignSelf: "flex-start", marginTop: 4, paddingLeft: 0, paddingRight: 0 }}>{{ default: () => <text>使用官方 ~/.dsh</text> }}</Button>
         <text style={{ marginTop: 8, fontSize: 12, lineHeight: 20, color: palette.muted }}>新用户默认复用官方目录，凭据、配置和会话由 dsh 管理。已有缓存不会自动搬移；切换后重启应用生效，旧目录会话保留。</text>
@@ -73,7 +73,7 @@ export const SettingsDialog = defineComponent({
           options={props.store.reasoningOptions.value.length ? props.store.reasoningOptions.value.map(option => ({ key: option.key, label: option.label })) : [
             { key: "off", label: "关闭" }, { key: "low", label: "低" }, { key: "high", label: "高" }, { key: "max", label: "最高" },
           ]} onChange={(value: string) => { void props.store.setReasoning(value) }} style={{ marginTop: 10 }} />
-        {error.value ? <text role="alert" style={{ marginTop: 12, fontSize: 12, lineHeight: 20, color: palette.error }}>{error.value}</text> : null}
+        {error.value ? <text role="alert" style={{ userSelect: "text", marginTop: 12, fontSize: 12, lineHeight: 20, color: palette.error }}>{error.value}</text> : null}
         <Button type="link" size="small" onClick={() => renderer?.openUrl?.("https://platform.deepseek.com/api_keys")}
           style={{ alignSelf: "flex-start", marginTop: 10, paddingLeft: 0, paddingRight: 0 }}>{{ default: () => <text>前往 DeepSeek 开放平台获取 Key ↗</text> }}</Button>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, marginTop: 24 }}>
