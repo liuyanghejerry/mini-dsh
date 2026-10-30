@@ -1,8 +1,9 @@
-import { defineComponent, onBeforeUnmount, onMounted, ref, watch, type PropType } from "vue"
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch, type PropType } from "vue"
 import { Button, Card, Icon, Tag, activationKeys } from "@gpuiv/animal-island"
 import { VirtualList, useGpuix, type EventPayload, type VirtualListInstance } from "@gpuiv/vue"
 import type { ChatMessage, Conversation, ToolActivity } from "../types"
 import { markdownTheme, palette, reasoningTheme } from "../theme"
+import { groupTranscript, processSummary } from "../services/transcript-rows"
 import { Glyph } from "./Glyph"
 import { resolve, isAbsolute } from "node:path"
 
@@ -168,6 +169,15 @@ export const Transcript = defineComponent({
     onLoadOlder: { type: Function as PropType<() => void>, required: true },
   },
   setup(props) {
+    const expandedGroups = ref(new Set<string>())
+    const rows = computed(() => groupTranscript(props.conversation.items).flatMap(row =>
+      row.kind === "process" && expandedGroups.value.has(row.id) ? [row, ...row.items] : [row]))
+    function toggleGroup(id: string) {
+      const next = new Set(expandedGroups.value)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      expandedGroups.value = next
+    }
     const list = ref<VirtualListInstance | null>(null)
     const { renderer } = useGpuix()
     let visible = { start: 0, end: 0 }
@@ -176,7 +186,7 @@ export const Transcript = defineComponent({
     let width = 0
     let timer: ReturnType<typeof setInterval> | undefined
     function rowHeight(index: number): number {
-      const item = props.conversation.items[index]
+      const item = rows.value[index]
       return item ? heights.get(item.id) ?? 160 : 0
     }
     function updateScrollbar() {
@@ -190,12 +200,12 @@ export const Transcript = defineComponent({
       }
       for (let i = visible.start; i < visible.end; i++) {
         const geometry = renderer?.getVirtualListGeometry?.(id, i)
-        const item = props.conversation.items[i]
+        const item = rows.value[i]
         if (item && geometry && geometry.length >= 9 && geometry[8]! > 0) heights.set(item.id, geometry[8]!)
       }
       let total = 0
       let offset = 0
-      for (let i = 0; i < props.conversation.items.length; i++) {
+      for (let i = 0; i < rows.value.length; i++) {
         const height = rowHeight(i)
         total += height
         if (i < anchor.itemIndex) offset += height
@@ -207,12 +217,13 @@ export const Transcript = defineComponent({
     onMounted(() => { timer = setInterval(updateScrollbar, 100) })
     onBeforeUnmount(() => { if (timer) clearInterval(timer) })
     watch(() => props.conversation.id, () => {
+      expandedGroups.value = new Set()
       heights.clear()
       visible = { start: 0, end: 0 }
       bar.value = { total: 1, viewport: 1, offset: 0 }
     })
     function navigate(event: EventPayload) {
-      if (event.y == null || !props.conversation.items.length) return
+      if (event.y == null || !rows.value.length) return
       const id = list.value?.id
       const bounds = id == null ? null : renderer?.getElementBounds?.(id)
       if (!bounds || bounds.height <= 0) return
@@ -220,12 +231,12 @@ export const Transcript = defineComponent({
       const fraction = Math.max(0, Math.min(1, (event.y - bounds.y - thumb / 2) / Math.max(1, bounds.height - thumb)))
       let offset = fraction * Math.max(0, bar.value.total - bar.value.viewport)
       let index = 0
-      while (index < props.conversation.items.length - 1 && offset >= rowHeight(index)) offset -= rowHeight(index++)
+      while (index < rows.value.length - 1 && offset >= rowHeight(index)) offset -= rowHeight(index++)
       list.value?.scrollToItem(index, offset)
     }
     return () => {
       const conversation = props.conversation
-      if (!conversation.items.length && conversation.historyCached) return <EmptyState onPrompt={props.onPrompt} />
+      if (!rows.value.length && conversation.historyCached) return <EmptyState onPrompt={props.onPrompt} />
       return <div testId="message-list" style={{ display: "flex", flexDirection: "column", flexGrow: 1, flexBasis: 0, minHeight: 0, width: "100%" }}>
         {conversation.historyHasMore ? <div style={{ display: "flex", justifyContent: "center", flexShrink: 0, marginTop: 10 }}>
           <Button testId="load-older" type="text" size="small" loading={conversation.historyLoading} onClick={props.onLoadOlder}>
@@ -238,7 +249,7 @@ export const Transcript = defineComponent({
             : conversation.historyError ?? "尚未读取早期消息；新的执行与回复会显示在这里。"}</text>
         </div> : null}
         <div style={{ display: "flex", flexDirection: "row", flexGrow: 1, flexBasis: 0, minHeight: 0 }}>
-        <VirtualList key={conversation.id} ref={list} itemCount={conversation.items.length} estimatedItemHeight={160} overdraw={280} alignment="bottom" followTail
+        <VirtualList key={conversation.id} ref={list} itemCount={rows.value.length} estimatedItemHeight={160} overdraw={280} alignment="bottom" followTail
           style={{ flexGrow: 1, flexBasis: 0, minHeight: 0, width: "100%" }}
           onVisibleRange={(event: EventPayload) => {
             const start = event.startIndex ?? 0
@@ -246,10 +257,18 @@ export const Transcript = defineComponent({
             visible = { start, end }
           }}
           renderItem={(index: number) => {
-            const item = conversation.items[index]
+            const item = rows.value[index]
             if (!item) return null
+            if (item.kind === "process") return <div key={item.id} style={{ paddingLeft: 78, paddingRight: 32, paddingTop: 8, paddingBottom: 8 }}>
+              <div role="button" tabIndex={0} aria-expanded={expandedGroups.value.has(item.id)}
+                onClick={() => toggleGroup(item.id)} onKeyDown={activationKeys(() => toggleGroup(item.id))}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, borderRadius: 10, backgroundColor: "#f5f0e5", cursor: "pointer" }}>
+                <Glyph name={expandedGroups.value.has(item.id) ? "down" : "right"} size={12} color={palette.muted} />
+                <text style={{ fontSize: 12, lineHeight: 20, color: palette.muted }}>{processSummary(item)}</text>
+              </div>
+            </div>
             if (item.kind === "tool") return <ToolRow key={item.id} activity={item} />
-            return <MessageRow key={item.id} message={item} cwd={conversation.cwd} latest={index === conversation.items.length - 1} onRetry={props.onRetry} />
+            return <MessageRow key={item.id} message={item} cwd={conversation.cwd} latest={index === rows.value.length - 1} onRetry={props.onRetry} />
           }} />
         {bar.value.total > bar.value.viewport ? <div role="scrollbar" aria-label="对话滚动条" aria-orientation="vertical" onMouseDown={navigate} onMouseMove={(event: EventPayload) => { if (event.pressedButton === 0) navigate(event) }}
           style={{ width: 14, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", backgroundColor: "#eee9df", cursor: "pointer" }}>

@@ -22,3 +22,16 @@ if (tool?.kind === "tool") {
 }
 assert.equal(items[2]?.kind === "message" && items[2].content, "最终回复")
 console.log("History mapping regression checks passed")
+
+const { groupTranscript, processSummary } = await import("../src/services/transcript-rows")
+const reasoning = { kind: "message", id: "reason", role: "assistant", content: "", reasoning: "检查文件", status: "done", createdAt: 1 } as const
+const grouped = groupTranscript([items[0]!, reasoning, items[1]!, { ...reasoning, id: "reason2" }, items[2]!])
+assert.equal(grouped.length, 3)
+assert.equal(grouped[1]?.kind, "process")
+if (grouped[1]?.kind === "process") {
+  assert.equal(grouped[1].items.length, 3)
+  assert.ok(processSummary(grouped[1]).includes("bash"))
+}
+assert.equal(groupTranscript([{ ...reasoning, status: "streaming" }])[0]?.kind, "message")
+assert.equal(groupTranscript([{ ...reasoning, status: "error" }])[0]?.kind, "message")
+console.log("Transcript grouping regression checks passed")
