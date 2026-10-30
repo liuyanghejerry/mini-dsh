@@ -8,6 +8,7 @@ import {
   ndJsonStream,
   PROTOCOL_VERSION,
   type ClientConnection,
+  type ContentBlock,
   type NewSessionResponse,
   type PromptResponse,
   type RequestPermissionRequest,
@@ -155,10 +156,10 @@ export class DshRuntime {
     return sessions
   }
 
-  prompt(sessionId: string, text: string): Promise<PromptResponse> {
+  prompt(sessionId: string, text: string, attachments: ContentBlock[] = []): Promise<PromptResponse> {
     return this.agent().then(agent => agent.request(methods.agent.session.prompt, {
       sessionId,
-      prompt: [{ type: "text", text }],
+      prompt: [...(text ? [{ type: "text" as const, text }] : []), ...attachments],
     }))
   }
 

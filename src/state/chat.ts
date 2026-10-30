@@ -1,3 +1,4 @@
+import { attachmentBlocks, type Attachment } from "../services/attachments"
 import type { SessionMetrics } from "../services/session-metrics"
 import { computed, ref, watch } from "vue"
 import { statSync } from "node:fs"
@@ -430,19 +431,19 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     void readInitialHistory(conversation, true)
   }
 
-  async function send(text = active.value.draft ?? "") {
+  async function send(text = active.value.draft ?? "", attachments: Attachment[] = []) {
     const content = text.trim()
     const conversation = active.value
-    if (!content || conversation.running || disposed) return
+    if ((!content && !attachments.length) || conversation.running || disposed) return
     conversation.running = true
     conversation.stopRequested = false
     const assistantCount = conversation.items.filter(item => item.kind === "message" && item.role === "assistant").length
     const firstPrompt = !conversation.items.some(item => item.kind === "message" && item.role === "user")
     const user: ChatMessage = {
-      kind: "message", id: `user-${crypto.randomUUID()}`, role: "user", content,
+      kind: "message", id: `user-${crypto.randomUUID()}`, role: "user", content: [content, ...attachments.map(file => `[${file.image ? "图片" : "文件"}：${file.name}](${file.path})`)].filter(Boolean).join("\n"),
       status: "done", createdAt: Date.now(), source: "dsh",
     }
-    if (firstPrompt) conversation.title = titleFor(content)
+    if (firstPrompt) conversation.title = titleFor(content || attachments.map(file => file.name).join("、"))
     conversation.items.push(user)
     conversation.draft = ""
     conversation.updatedAt = Date.now()
@@ -455,8 +456,9 @@ export function createChatStore(options: ChatStoreOptions = {}) {
         if (!conversation.draft) conversation.draft = content
         return
       }
+      const blocks = await attachmentBlocks(attachments)
       submitted = true
-      const response = await runtime.prompt(sessionId, content)
+      const response = await runtime.prompt(sessionId, content, blocks)
       const assistant = lastAssistant(conversation)
       if (assistant) {
         assistant.status = response.stopReason === "cancelled" ? "stopped"
@@ -484,6 +486,7 @@ export function createChatStore(options: ChatStoreOptions = {}) {
       conversation.updatedAt = Date.now()
       persistNow()
     }
+    return submitted
   }
 
   async function stop() {

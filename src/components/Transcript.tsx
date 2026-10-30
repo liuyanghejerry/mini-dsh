@@ -1,8 +1,9 @@
+import { MessageContent } from "./MessageContent"
 import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch, type PropType } from "vue"
 import { Button, Card, Icon, Tag, activationKeys } from "@gpuiv/animal-island"
 import { VirtualList, useGpuix, type EventPayload, type VirtualListInstance } from "@gpuiv/vue"
 import type { ChatMessage, Conversation, ToolActivity } from "../types"
-import { markdownTheme, palette, reasoningTheme } from "../theme"
+import { palette, reasoningTheme } from "../theme"
 import { groupTranscript, processSummary } from "../services/transcript-rows"
 import { Glyph } from "./Glyph"
 import { resolve, isAbsolute } from "node:path"
@@ -139,7 +140,7 @@ const MessageRow = defineComponent({
             {showReasoning.value ? <div style={{ marginTop: 6 }}><markdown style={{ userSelect: "text" }} source={item.reasoning} theme={reasoningTheme} onLinkClick={openLink} /></div> : null}
           </div> : null}
           {item.content || item.status !== "done" ? <div style={{ display: "flex", flexDirection: "column", marginTop: 8, padding: 16, borderRadius: 17, backgroundColor: palette.paper }}>
-            {item.content ? <markdown style={{ userSelect: "text" }} source={resolveImages(item.content, props.cwd)} theme={markdownTheme} onLinkClick={openLink} /> : null}
+            {item.content ? <MessageContent source={resolveImages(item.content, props.cwd)} onLinkClick={openLink} /> : null}
             {!item.content && item.status === "streaming" ? <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 32 }}>
               <Icon name="Star" size={23} />
               <text style={{ fontSize: 13, color: palette.muted }}>{item.reasoning ? "正在整理回答…" : "等待 dsh 返回…"}</text>
