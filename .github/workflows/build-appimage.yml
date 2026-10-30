@@ -39,7 +39,7 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Cache native binding
         id: native
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: .ci/gpuiv/packages/native/*.node
           key: gpuiv-linux-x64-ubuntu24-03a74a6b76a1f20ef65cbab547c9a1bd22c55b8d
