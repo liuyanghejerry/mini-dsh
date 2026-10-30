@@ -25,7 +25,7 @@ function link(source: string, destination: string, expectedName: string) {
   console.log(`[mini-dsh] ${expectedName} → ${source}`)
 }
 
-for (const name of ["vue", "native", "animal-island"]) {
+for (const name of ["vue", "native"]) {
   link(resolve(gpuivRoot, "packages", name), resolve(root, "node_modules", "@gpuiv", name), `@gpuiv/${name}`)
 }
 link(resolve(gpuivRoot, "packages", "vue", "node_modules", "vue"), resolve(root, "node_modules", "vue"), "vue")

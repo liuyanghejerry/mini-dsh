@@ -51,11 +51,13 @@ jobs:
         if: steps.native.outputs.cache-hit != 'true'
         working-directory: .ci/gpuiv/packages/native
         run: bun run build:release --target x86_64-unknown-linux-gnu
-      - name: Build Vue and Animal Island
+      - name: Restore complete native declarations
         working-directory: .ci/gpuiv
-        run: |
-          bun run --cwd packages/vue build
-          bun run --cwd packages/animal-island build
+        # The release-only N-API generator omits test-support exports needed by Vue types.
+        run: git restore -- packages/native/index.d.ts
+      - name: Build Vue adapter
+        working-directory: .ci/gpuiv
+        run: bun run --cwd packages/vue build
       - name: Install application and runtime
         run: |
           bun install --frozen-lockfile

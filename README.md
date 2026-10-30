@@ -42,7 +42,7 @@ mini dsh 只维护桌面界面、ACP 执行适配、官方 Web 只读历史适�
 
 ## 从源码运行
 
-需要 Bun、uv，以及可构建 GPUIV 的开发环境。当前开发构建仍使用相邻的 GPUIV 源码 checkout；Animal Island 和 GPUIV packager 尚未作为独立 npm 包发布。
+需要 Bun、uv，以及可构建 GPUIV 的开发环境。Animal Island 组件库与 GPUIV packager 使用 npm 发布的 `0.1.0` 版本，由 `bun install` 安装；Vue 适配器和 native binding 仍链接相邻的 GPUIV 源码 checkout。
 
 ```bash
 git clone --recurse-submodules https://github.com/liuyanghejerry/gpuiv.git
@@ -51,10 +51,8 @@ git clone https://github.com/liuyanghejerry/mini-dsh.git
 cd gpuiv
 bun install
 bun run build
-cd packages/animal-island
-bun run build
 
-cd ../../../mini-dsh
+cd ../mini-dsh
 bun install
 bun run setup:dsh
 bun run build

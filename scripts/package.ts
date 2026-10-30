@@ -1,14 +1,12 @@
 import { copyImageDependencies } from "./package-image-dependencies"
 import { spawnSync } from "node:child_process"
-import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { packageAppImage } from "./package-appimage"
 import { copyDistributionNotices } from "./distribution-notices"
 
 const root = fileURLToPath(new URL("../", import.meta.url))
-const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")) as { gpuiv?: { root?: string } }
-const gpuivRoot = resolve(root, process.env.GPUIV_ROOT ?? manifest.gpuiv?.root ?? "../gpuiv")
+const packagerCli = fileURLToPath(new URL("../bin/gpuiv-packager.ts", import.meta.resolve("@gpuiv/packager")))
 
 function run(entry: string, args: string[]) {
   const result = spawnSync(process.execPath, [entry, ...args], {
@@ -21,7 +19,7 @@ function run(entry: string, args: string[]) {
 }
 
 run(resolve(root, "scripts/install-dsh.ts"), [])
-run(resolve(gpuivRoot, "packages/packager/bin/gpuiv-packager.ts"), [
+run(packagerCli, [
   "build",
   "--config", resolve(root, "gpuiv.package.json"),
   "--no-smoke",
