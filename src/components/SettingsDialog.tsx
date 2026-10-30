@@ -1,3 +1,4 @@
+import { currentVersion } from "../services/app-updates"
 import { defineComponent, ref, watch, type PropType } from "vue"
 import { Button, Icon, Input, Modal, Select, Tag } from "@gpuiv/animal-island"
 import { useGpuix } from "@gpuiv/vue"
@@ -8,6 +9,7 @@ import { Glyph } from "./Glyph"
 
 export const SettingsDialog = defineComponent({
   props: {
+    onCheckUpdates: { type: Function as PropType<() => void>, required: true },
     store: { type: Object as PropType<ChatStore>, required: true },
     open: { type: Boolean, default: false },
     onClose: { type: Function as PropType<() => void>, required: true },
@@ -76,6 +78,9 @@ export const SettingsDialog = defineComponent({
         {error.value ? <text role="alert" style={{ userSelect: "text", marginTop: 12, fontSize: 12, lineHeight: 20, color: palette.error }}>{error.value}</text> : null}
         <Button type="link" size="small" onClick={() => renderer?.openUrl?.("https://platform.deepseek.com/api_keys")}
           style={{ alignSelf: "flex-start", marginTop: 10, paddingLeft: 0, paddingRight: 0 }}>{{ default: () => <text>前往 DeepSeek 开放平台获取 Key ↗</text> }}</Button>
+        <Button testId="check-updates" type="text" size="small" onClick={() => { props.onCheckUpdates(); props.onClose() }} style={{ alignSelf: "flex-start", marginTop: 12 }}>
+          {{ default: () => <text>检查更新 · v{currentVersion}</text> }}
+        </Button>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, marginTop: 24 }}>
           <Button type="text" size="small" onClick={() => { void clear() }} icon={<Glyph name="trash" size={13} />}>{{ default: () => <text>清除本次密钥</text> }}</Button>
           <div style={{ flexGrow: 1 }} />

@@ -1,3 +1,4 @@
+import { UpdateNotice } from "./components/UpdateNotice"
 import { defineComponent, onBeforeUnmount, ref } from "vue"
 import { Button, Tag, Tooltip, fonts, provideTheme } from "@gpuiv/animal-island"
 import { useGpuix } from "@gpuiv/vue"
@@ -20,6 +21,7 @@ export const App = defineComponent({
     provideTheme()
     const store = createChatStore()
     const settingsOpen = ref(false)
+    const updates = ref<{ check: () => void } | null>(null)
     onBeforeUnmount(store.dispose)
     return () => <div testId="app-root" style={{
       userSelect: "none", position: "relative", display: "flex", flexDirection: "row", alignItems: "stretch",
@@ -42,13 +44,14 @@ export const App = defineComponent({
           </Tooltip>
           {process.platform !== "darwin" ? <WindowControls /> : null}
         </div>
+        <UpdateNotice ref={updates} busy={store.conversations.value.some(item => item.running)} />
         {store.notice.value ? <div testId="storage-notice" role="alert" style={{ flexShrink: 0, paddingTop: 9, paddingBottom: 9, paddingLeft: 20, paddingRight: 20, backgroundColor: palette.errorBg }}>
           <text style={{ userSelect: "text", fontSize: 12, lineHeight: 18, color: palette.error }}>{store.notice.value}</text>
         </div> : null}
         <Transcript conversation={store.active.value} onRetry={store.retry} onPrompt={store.send} onLoadOlder={store.loadOlder} />
         <Composer store={store} />
       </div>
-      <SettingsDialog store={store} open={settingsOpen.value} onClose={() => { settingsOpen.value = false }} />
+      <SettingsDialog onCheckUpdates={() => updates.value?.check()} store={store} open={settingsOpen.value} onClose={() => { settingsOpen.value = false }} />
       <PermissionDialog request={store.pendingPermission.value} onRespond={store.respondPermission} />
     </div>
   },

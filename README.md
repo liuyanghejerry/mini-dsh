@@ -107,3 +107,9 @@ mini dsh 自有代码采用 [MIT License](LICENSE)。第三方组件仍遵循各
 - GPUIV 固定在工作流指定的提交；升级时需同步修改 checkout 的 SHA 和原生缓存键。Bun、uv 和 dsh 运行时也固定版本。
 - Release 仅发布任务具有 `contents: write`；检查和构建无需账号凭据。GUI 鼠标交互仍需另行验证。
 - 源码运行可执行 `bun run install:desktop` 安装当前用户的启动项与小熊图标；启动项指向当前 checkout。
+
+## 自动更新
+
+应用启动时及每 6 小时从本仓库 GitHub Releases 检查最新稳定版；也可在设置中手动检查。发现新版后显示提示，点击下载会验证版本对应的 AppImage 大小和 `SHA256SUMS`。仅通过 HTTPS 下载，不使用 GitHub 私有凭据。
+
+通过 AppImage 启动时，可在没有执行中任务的情况下点击“安装更新”；更新文件会在原 AppImage 所在目录暂存并原子替换，关闭后再次打开生效。目录不可写时会提示手动更新。源码运行只下载到 `~/.cache/mini-dsh/updates/`，不会替换 Bun 或源码。检查失败不干扰聊天；手动检查会显示错误。
