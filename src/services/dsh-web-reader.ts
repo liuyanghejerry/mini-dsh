@@ -1,3 +1,4 @@
+import { parseSkillCommands } from "./slash-commands"
 import { parseSessionMetrics } from "./session-metrics"
 import { spawn, type ChildProcess } from "node:child_process"
 import { mkdirSync } from "node:fs"
@@ -204,6 +205,10 @@ export class DshWebReader implements DshHistoryReader {
         updatedAt: typeof item.updatedAt === "number" && Number.isFinite(item.updatedAt) ? item.updatedAt : Date.now(),
       }]
     })
+  }
+
+  async listSkills(sessionId: string) {
+    return parseSkillCommands(await this.rpc("skills/list", { request: { sessionId } }))
   }
 
   async readMetrics(sessionId: string) {

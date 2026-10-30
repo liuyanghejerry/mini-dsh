@@ -1,3 +1,4 @@
+import type { AvailableCommand } from "@agentclientprotocol/sdk"
 import type { SessionMetrics } from "./session-metrics"
 import type { ChatMessage, TimelineItem, ToolActivity } from "../types"
 
@@ -24,6 +25,7 @@ export interface DshHistoryPage {
 }
 
 export interface DshHistoryReader {
+  listSkills?(sessionId: string): Promise<AvailableCommand[]>
   readMetrics?(sessionId: string): Promise<SessionMetrics>
   start(): Promise<void>
   listSessions(): Promise<DshSessionSummary[]>

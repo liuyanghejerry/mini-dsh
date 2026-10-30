@@ -1,3 +1,4 @@
+import { mergeCommands } from "../services/slash-commands"
 import { attachmentBlocks, type Attachment } from "../services/attachments"
 import type { SessionMetrics } from "../services/session-metrics"
 import { computed, ref, watch } from "vue"
@@ -176,10 +177,15 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     notice.value = errorMessage(error, [runtimeApiKey, options.baseUrl ?? process.env.DEEPSEEK_BASE_URL ?? ""])
   }
 
+  const earlyCommands = new Map<string, SessionNotification["update"]>()
+
   function onUpdate(notification: SessionNotification) {
     if (disposed) return
     const conversation = conversations.value.find(item => item.sessionId === notification.sessionId)
-    if (!conversation) return
+    if (!conversation) {
+      if (notification.update.sessionUpdate === "available_commands_update") earlyCommands.set(notification.sessionId, notification.update)
+      return
+    }
     applyAcpUpdate(conversation, notification.update, modelLabel.value)
     if (notification.update.sessionUpdate === "config_option_update") {
       model.value = currentValue(conversation, "model") ?? model.value
@@ -323,7 +329,12 @@ export function createChatStore(options: ChatStoreOptions = {}) {
   async function restart() {
     await ready
     await runtime.close()
-    for (const conversation of conversations.value) conversation.active = false
+    earlyCommands.clear()
+    for (const conversation of conversations.value) {
+      conversation.active = false
+      conversation.availableCommands = undefined
+      conversation.skillCommands = undefined
+    }
     runtime = createRuntime()
     runtimeFailed = false
     connectionMode.value = "starting"
@@ -392,6 +403,9 @@ export function createChatStore(options: ChatStoreOptions = {}) {
         } else {
           const created = await runtime.newSession(conversation.cwd)
           conversation.sessionId = created.sessionId
+          const commands = earlyCommands.get(created.sessionId)
+          if (commands) applyAcpUpdate(conversation, commands)
+          earlyCommands.delete(created.sessionId)
           conversation.configOptions = created.configOptions ?? []
         }
         conversation.active = true
@@ -412,6 +426,26 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     }
     if (!conversation.sessionId) throw new Error("dsh 没有返回会话 ID")
     return conversation.sessionId
+  }
+
+  async function loadCommands() {
+    const conversation = active.value
+    if (conversation.commandsLoading || conversation.running || disposed) return
+    conversation.commandsLoading = true
+    conversation.commandsError = undefined
+    try {
+      await ready
+      if (disposed) return
+      const sessionId = await prepare(conversation)
+      if (history?.listSkills) {
+        const skills = await history.listSkills(sessionId)
+        if (!disposed) conversation.skillCommands = skills
+      }
+    } catch (error) {
+      conversation.commandsError = errorMessage(error, [runtimeApiKey, options.baseUrl ?? ""])
+    } finally {
+      conversation.commandsLoading = false
+    }
   }
 
   function newConversation() {
@@ -632,6 +666,8 @@ export function createChatStore(options: ChatStoreOptions = {}) {
   }
 
   return {
+    commands: computed(() => mergeCommands(active.value.availableCommands ?? [], active.value.skillCommands ?? [])),
+    loadCommands,
     sessionMetrics: computed(() => metrics.value[activeId.value]),
     conversations,
     active,

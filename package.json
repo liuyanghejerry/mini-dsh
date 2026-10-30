@@ -19,7 +19,8 @@
     "package": "bun scripts/package.ts",
     "package:appimage": "bun scripts/package.ts --appimage",
     "postinstall": "bun scripts/link-local.ts",
-    "test": "bun scripts/check-history.ts && bun scripts/check-metrics.ts && bun scripts/check-attachments.ts && bun scripts/check-updates.ts && bun test scripts/release-notes.test.mjs"
+    "test:skills-runtime": "bun scripts/check-skills-runtime.ts",
+    "test": "bun scripts/check-file-mentions.ts && bun scripts/check-commands.ts && bun scripts/check-history.ts && bun scripts/check-metrics.ts && bun scripts/check-attachments.ts && bun scripts/check-updates.ts && bun test scripts/release-notes.test.mjs"
   },
   "gpuiv": {
     "root": "../gpuiv"

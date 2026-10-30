@@ -9,6 +9,8 @@ mini dsh 是基于官方 dsh 的独立客户端，不是 DeepSeek 官方产品�
 - **dsh 核心**：通过 Agent Client Protocol（ACP）使用官方 DeepSeek Harness，复用 Agent 循环、工具、插件、权限与会话持久化。
 - **原生界面**：Vue 3 / TSX 驱动 GPUIV，Animal Island 提供界面组件。
 - **接续官方数据**：新安装默认使用 `~/.dsh`，可发现并通过 ACP 恢复官方会话；已有 mini dsh 数据不会被强制迁移。
+- **文件引用**：输入 `@` 搜索当前会话工作区的文件，点击或用 Alt+↑↓、Enter 填入；支持句中补全和带空格路径（自动使用 `@"路径"`）。搜索遵守 Git 忽略规则，排除 `.git`、`node_modules` 和 `.mini-dsh`；引用交给官方 dsh 按需读取，不会直接上传整个文件。
+- **技能快捷调用**：输入 `/` 查看当前会话的技能与命令，继续输入筛选，用 Alt+↑↓ 和 Enter 或点击填入，补充任务后发送；Esc 关闭菜单。技能由官方 dsh 发现和加载。
 - **流式工具时间线**：显示回复、思考、工具调用和上下文用量，支持取消、重试、权限确认和消息复制。
 - **精简桌面分发**：提供 Linux x64 单文件 AppImage，内嵌固定版本的 dsh 运行时。
 
@@ -81,6 +83,8 @@ AppImage 输出为 `dist/package/mini-dsh-0.1.0-linux-x86_64.AppImage`。打包�
 bun run build
 bun run package:appimage
 ```
+
+使用 `bun run test` 运行项目回归；`bun run test:skills-runtime` 使用临时工作区和本地模拟模型服务验证技能发现、`/技能名` 的真实 ACP 调用，以及 `@文件` 引用和实际文件读取，不使用真实账号凭据。
 
 发布前还应进行纯内存或 headless 的 ACP 回归和 AppImage 挂载检查。不要用真实账号凭据做自动化测试；GUI 验证与无窗口回归应分开进行。
 

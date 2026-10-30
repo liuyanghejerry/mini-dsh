@@ -68,6 +68,9 @@ export function applyAcpUpdate(conversation: Conversation, update: SessionUpdate
     case "tool_call_update":
       updateTool(conversation, update)
       break
+    case "available_commands_update":
+      conversation.availableCommands = update.availableCommands
+      break
     case "config_option_update":
       conversation.configOptions = update.configOptions
       break

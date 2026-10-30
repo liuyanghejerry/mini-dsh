@@ -1,4 +1,4 @@
-import type { SessionConfigOption, ToolCallContent, ToolCallLocation, ToolCallStatus, ToolKind } from "@agentclientprotocol/sdk"
+import type { AvailableCommand, SessionConfigOption, ToolCallContent, ToolCallLocation, ToolCallStatus, ToolKind } from "@agentclientprotocol/sdk"
 
 export type MessageRole = "user" | "assistant"
 export type MessageStatus = "streaming" | "done" | "stopped" | "error"
@@ -49,6 +49,10 @@ export interface Conversation {
   updatedAt: number
   cwd: string
   dshHome: string
+  availableCommands?: AvailableCommand[]
+  skillCommands?: AvailableCommand[]
+  commandsLoading?: boolean
+  commandsError?: string
   configOptions: SessionConfigOption[]
   historyCached: boolean
   historyHasMore?: boolean
@@ -65,7 +69,7 @@ export interface Conversation {
 }
 
 export type PersistedConversation = Omit<Conversation,
-  "running" | "active" | "permissionPending" | "preparing" | "currentAssistantId" | "stopRequested" | "configOptions" | "historyLoading" | "historyError"
+  "availableCommands" | "skillCommands" | "commandsLoading" | "commandsError" | "running" | "active" | "permissionPending" | "preparing" | "currentAssistantId" | "stopRequested" | "configOptions" | "historyLoading" | "historyError"
 >
 
 export interface PersistedChat {
