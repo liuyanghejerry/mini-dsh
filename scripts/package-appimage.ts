@@ -8,11 +8,11 @@ import { copyDistributionNotices } from "./distribution-notices"
 const root = fileURLToPath(new URL("../", import.meta.url))
 const toolsDirectory = resolve(root, "dist/tools")
 const toolArchive = resolve(toolsDirectory, "appimagetool-x86_64.AppImage")
-const toolUrl = "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
-const toolSha256 = "95cbe7cce9717fce90c484e34052ee7c7f1d7635b33c12525b4776826a7d29b6"
+const toolUrl = "https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage"
+const toolSha256 = "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
 const runtimeArchive = resolve(toolsDirectory, "appimage-runtime-x86_64")
-const runtimeUrl = "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64"
-const runtimeSha256 = "617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46"
+const runtimeUrl = "https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64"
+const runtimeSha256 = "2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d"
 
 function digest(path: string) {
   return createHash("sha256").update(readFileSync(path)).digest("hex")
@@ -42,7 +42,7 @@ async function download(path: string, url: string, sha256: string) {
 }
 
 async function appImageTool() {
-  const extracted = resolve(toolsDirectory, "appimagetool-x86_64")
+  const extracted = resolve(toolsDirectory, `appimagetool-${toolSha256}`)
   const executable = resolve(extracted, "AppRun")
   if (existsSync(executable)) return executable
   mkdirSync(toolsDirectory, { recursive: true })

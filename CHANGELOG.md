@@ -18,6 +18,7 @@
 ### 改进与修复
 
 - 组件库与打包工具切换到 npm 发布的 `@gpuiv/animal-island@0.1.0` 和 `@gpuiv/packager@0.1.0`。
+- 固定 AppImage 打包工具和运行时版本及 SHA256，避免上游 continuous 更新破坏发布；原生编译成功后立即保存 CI 缓存。
 - 修复 CI 构建 native binding 后覆盖完整类型声明、导致 Vue 适配器编译失败的问题。
 
 - 刷新会话时同步最新历史，过滤内部上下文提示并关联工具结果。
