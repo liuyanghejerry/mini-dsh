@@ -4,7 +4,7 @@ import type { StyleDesc } from "@gpuiv/vue"
 import type { ChatStore } from "../state/chat"
 import { palette } from "../theme"
 import { Glyph } from "./Glyph"
-import appLogo from "../../packaging/mini-dsh.svg" with { type: "file" }
+import appLogo from "../../packaging/mini-dsh-mark.svg" with { type: "file" }
 
 const rowStyle: StyleDesc = {
   display: "flex",
