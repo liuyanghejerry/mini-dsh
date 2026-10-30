@@ -34,11 +34,6 @@ declare module "vue" {
   }
 }
 
-declare module "*.svg" {
-  const path: string
-  export default path
-}
-
 declare global {
   declare module "*.bin" {
     const path: string
