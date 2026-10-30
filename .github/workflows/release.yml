@@ -19,6 +19,10 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync("package.json")); const g=JSON.parse(fs.readFileSync("gpuiv.package.json")); if(process.env.RELEASE_TAG!==`v${p.version}` || p.version!==g.version) throw Error("Release tag and manifest versions must match")'
+      - name: Validate version changelog
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node scripts/release-notes.mjs "$RELEASE_TAG"
   build:
     needs: version
     uses: ./.github/workflows/build-appimage.yml
@@ -28,10 +32,25 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: mini-dsh-linux-x64
           path: release
+      - name: Generate versioned release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          previous=$(git describe --tags --match 'v*' --abbrev=0 "${RELEASE_TAG}^" 2>/dev/null || true)
+          fields=(-f "tag_name=$RELEASE_TAG" -f "target_commitish=$GITHUB_SHA")
+          if [[ -n "$previous" ]]; then fields+=(-f "previous_tag_name=$previous"); fi
+          gh api --method POST "repos/$GH_REPO/releases/generate-notes" "${fields[@]}" --jq .body > "$RUNNER_TEMP/github-notes.md"
+          node scripts/release-notes.mjs "$RELEASE_TAG" "$RUNNER_TEMP/release-notes.md" "$RUNNER_TEMP/github-notes.md"
       - name: Publish verified AppImage and checksums
         env:
           GH_TOKEN: ${{ github.token }}
@@ -42,8 +61,9 @@ jobs:
           sha256sum -c SHA256SUMS
           if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" ./*.AppImage SHA256SUMS --clobber
+            gh release edit "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
           else
             flags=()
             if [[ "$RELEASE_TAG" == *-* ]]; then flags+=(--prerelease); fi
-            gh release create "$RELEASE_TAG" ./*.AppImage SHA256SUMS --verify-tag --title "mini-dsh $RELEASE_TAG" --generate-notes "${flags[@]}"
+            gh release create "$RELEASE_TAG" ./*.AppImage SHA256SUMS --verify-tag --title "mini-dsh $RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md" "${flags[@]}"
           fi
