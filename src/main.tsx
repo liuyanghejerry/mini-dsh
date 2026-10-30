@@ -9,7 +9,7 @@ async function closeApplication() {
 }
 
 const app = createApp(App, {
-  title: "mini dsh · DeepSeek 小岛",
+  title: "mini dsh",
   width: 1200,
   height: 820,
   titlebarTransparent: true,

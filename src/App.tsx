@@ -28,10 +28,9 @@ export const App = defineComponent({
     }}>
       <Sidebar store={store} />
       <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, flexBasis: 0, minWidth: 0, minHeight: 0, height: "100%", backgroundColor: palette.cream }}>
-        <div testId="main-header" windowDragRegion style={{ display: "flex", alignItems: "center", flexShrink: 0, gap: 12, minHeight: 76, paddingLeft: 32, paddingRight: 26 }}>
+        <div testId="main-header" windowDragRegion style={{ display: "flex", alignItems: "center", flexShrink: 0, gap: 12, minHeight: 60, paddingLeft: 32, paddingRight: 26 }}>
           <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, flexBasis: 0, minWidth: 0, gap: 5 }}>
             <text style={{ fontSize: 18, fontWeight: 800, color: palette.ink }}>{store.active.value.title}</text>
-            <text style={{ fontSize: 11, color: palette.muted }}>一片小岛，一段新想法。</text>
           </div>
           <Tag size="small" variant="soft" color={store.connectionMode.value === "ready" ? "app-green" : "app-orange"}>
             {{ default: () => <text>{store.connectionMode.value === "ready" ? "DSH 内核" : store.connectionMode.value === "starting" ? "DSH 启动中" : "DSH 未连接"}</text> }}

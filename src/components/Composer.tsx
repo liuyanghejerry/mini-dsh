@@ -1,3 +1,4 @@
+import { formatSessionMetrics } from "../services/session-metrics"
 import { defineComponent, ref, type PropType } from "vue"
 import { Button, Select, Switch, Tooltip, fonts } from "@gpuiv/animal-island"
 import type { EventPayload } from "@gpuiv/vue"
@@ -24,7 +25,7 @@ export const Composer = defineComponent({
           boxShadow: { offsetX: 0, offsetY: 5, blurRadius: 20, spreadRadius: 0, color: "rgba(89,72,46,0.08)" },
         }}>
           <textarea testId="composer" value={store.draft.value} minRows={1} maxRows={5} autoFocus
-            placeholder="给 dsh 一个任务，让想法慢慢生长…" placeholderColor={palette.body} theme={editorTheme}
+            placeholder="给 dsh 一个任务，让想法慢慢生长…" placeholderColor="#b5aa99" theme={editorTheme}
             onChange={(event: EventPayload) => { store.draft.value = event.value ?? "" }}
             onSubmit={(event: EventPayload) => submit(event.value ?? store.draft.value)}
             onCompositionStart={() => { composing.value = true }} onCompositionEnd={() => { composing.value = false }}
@@ -46,9 +47,9 @@ export const Composer = defineComponent({
               onClick={streaming ? () => { void store.stop() } : () => submit(store.draft.value)} style={{ minWidth: 78 }}>{{ default: () => <text>{streaming ? "停止" : "发送"}</text> }}</Button>
           </div>
         </div>
-        <text style={{ marginTop: 10, fontSize: 11, color: palette.muted }}>{
-          store.connectionMode.value === "ready" ? "由 dsh 执行 · 工具操作按权限策略确认" : "正在连接 dsh · 可在设置中检查凭据与工作区"
-        }</text>
+        {store.sessionMetrics.value ? <text testId="session-metrics" aria-label="当前会话累计用量及平均解码速度" style={{ marginTop: 10, fontSize: 11, lineHeight: 18, color: palette.muted }}>
+          {formatSessionMetrics(store.sessionMetrics.value)}
+        </text> : null}
       </div>
     }
   },

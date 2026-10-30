@@ -26,14 +26,13 @@ export const Sidebar = defineComponent({
         width: 248, backgroundColor: palette.paper,
       }}>
         <div testId="sidebar-header" windowDragRegion style={{
-          display: "flex", alignItems: "center", flexShrink: 0, minHeight: 76,
+          display: "flex", alignItems: "center", flexShrink: 0, minHeight: 60,
           paddingLeft: 20, paddingRight: 20,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Icon name="Bear" size={38} />
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <text style={{ fontSize: 23, fontWeight: 900, color: palette.ink }}>mini dsh</text>
-              <text style={{ fontSize: 11, color: palette.muted }}>你的 DeepSeek 小岛</text>
             </div>
           </div>
         </div>
@@ -77,13 +76,7 @@ export const Sidebar = defineComponent({
             <text style={{ marginTop: 12, fontSize: 12, color: palette.muted }}>没有找到相关对话</text>
           </div>}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: 12, marginTop: 16, padding: 14, borderRadius: 16, backgroundColor: "#eef3df" }}>
-          <Icon name="Leaf" size={29} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <text style={{ fontSize: 12, fontWeight: 700, color: palette.body }}>轻巧，也可以很好看。</text>
-            <text style={{ fontSize: 10, color: palette.muted }}>Vue 3 · TypeScript · GPUI</text>
-          </div>
-        </div>
+
       </div>
     }
   },

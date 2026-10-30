@@ -1,3 +1,4 @@
+import type { SessionMetrics } from "./session-metrics"
 import type { ChatMessage, TimelineItem, ToolActivity } from "../types"
 
 export interface DshSessionSummary {
@@ -23,6 +24,7 @@ export interface DshHistoryPage {
 }
 
 export interface DshHistoryReader {
+  readMetrics?(sessionId: string): Promise<SessionMetrics>
   start(): Promise<void>
   listSessions(): Promise<DshSessionSummary[]>
   readHistory(sessionId: string, throughSeq?: number, beforeSeq?: number): Promise<DshHistoryPage>

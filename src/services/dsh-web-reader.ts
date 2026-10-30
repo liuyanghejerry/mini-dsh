@@ -1,3 +1,4 @@
+import { parseSessionMetrics } from "./session-metrics"
 import { spawn, type ChildProcess } from "node:child_process"
 import { mkdirSync } from "node:fs"
 import { basename, resolve } from "node:path"
@@ -203,6 +204,11 @@ export class DshWebReader implements DshHistoryReader {
         updatedAt: typeof item.updatedAt === "number" && Number.isFinite(item.updatedAt) ? item.updatedAt : Date.now(),
       }]
     })
+  }
+
+  async readMetrics(sessionId: string) {
+    const projection = await this.rpc("session/projections", { request: { sessionId } })
+    return parseSessionMetrics(isRecord(projection) ? projection.values : undefined)
   }
 
   private async readPage(sessionId: string, throughSeq: number, beforeSeq?: number) {

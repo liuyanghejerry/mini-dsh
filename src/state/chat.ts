@@ -1,4 +1,5 @@
-import { computed, ref } from "vue"
+import type { SessionMetrics } from "../services/session-metrics"
+import { computed, ref, watch } from "vue"
 import { statSync } from "node:fs"
 import { resolve } from "node:path"
 import type { RequestPermissionRequest, RequestPermissionResponse, SessionConfigOption, SessionInfo, SessionNotification } from "@agentclientprotocol/sdk"
@@ -597,9 +598,27 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     notice.value = "DSH_HOME 已保存，将在下次启动时使用；已有会话仍属于原来的 Harness home。"
   }
 
+  const metrics = ref<Record<string, SessionMetrics>>({})
+  let metricsBusy = false
+  async function refreshMetrics() {
+    const conversation = active.value
+    if (disposed || metricsBusy || !conversation.sessionId || !history?.readMetrics) return
+    metricsBusy = true
+    try {
+      const value = await history.readMetrics(conversation.sessionId)
+      if (!disposed) metrics.value = { ...metrics.value, [conversation.id]: value }
+    } catch { /* Statistics are optional; never interrupt a prompt for them. */ }
+    finally { metricsBusy = false }
+  }
+  const stopMetricsWatch = watch(() => [activeId.value, active.value.running, active.value.sessionId], () => { void refreshMetrics() })
+  const metricsTimer = setInterval(() => { void refreshMetrics() }, 5000)
+  void ready.then(refreshMetrics)
+
   function dispose(): Promise<void> {
     if (disposePromise) return disposePromise
     disposed = true
+    clearInterval(metricsTimer)
+    stopMetricsWatch()
     for (const sessionId of pendingPermissions.keys()) cancelPermission(sessionId)
     pendingPermissions.clear()
     pendingPermission.value = null
@@ -610,6 +629,7 @@ export function createChatStore(options: ChatStoreOptions = {}) {
   }
 
   return {
+    sessionMetrics: computed(() => metrics.value[activeId.value]),
     conversations,
     active,
     activeId,

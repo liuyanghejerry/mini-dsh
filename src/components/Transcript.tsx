@@ -27,7 +27,7 @@ const EmptyState = defineComponent({
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 540, padding: 36 }}>
         <Icon name="Bear" size={76} />
         <text style={{ marginTop: 16, fontSize: 29, fontWeight: 900, color: palette.ink }}>今天，想探索点什么？</text>
-        <text style={{ marginTop: 12, fontSize: 14, color: palette.muted }}>把任务留在小岛上，让 dsh 带着工具一起完成。</text>
+        <text style={{ marginTop: 12, fontSize: 14, color: palette.muted }}>描述任务，或选择下面的示例开始。</text>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 14, marginTop: 30 }}>
           {suggestions.map(suggestion => <Card key={suggestion.title} testId={`suggestion-${suggestion.icon}`}
             role="button" tabIndex={0} aria-label={suggestion.prompt}
