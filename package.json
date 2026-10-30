@@ -10,6 +10,7 @@
   "type": "module",
   "description": "A tiny DeepSeek desktop chat built with Vue 3, GPUIV and Animal Island.",
   "scripts": {
+    "install:desktop": "bun scripts/install-desktop.ts",
     "dev": "bun --preload ./node_modules/@gpuiv/vue/hmr-preload.js --hot src/main.tsx",
     "start": "NODE_ENV=production bun src/main.tsx",
     "build": "tsc --noEmit",
@@ -17,7 +18,8 @@
     "setup:dsh": "bun scripts/install-dsh.ts",
     "package": "bun scripts/package.ts",
     "package:appimage": "bun scripts/package.ts --appimage",
-    "postinstall": "bun scripts/link-local.ts"
+    "postinstall": "bun scripts/link-local.ts",
+    "test": "bun scripts/check-history.ts && bun scripts/check-metrics.ts && bun scripts/check-attachments.ts"
   },
   "gpuiv": {
     "root": "../gpuiv"
@@ -28,6 +30,7 @@
     "vue": "^3.5.13"
   },
   "devDependencies": {
+    "@types/bun": "^1.4.4",
     "@types/node": "^25.3.3",
     "typescript": "^5.3.0"
   }

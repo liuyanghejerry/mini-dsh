@@ -2,7 +2,7 @@ import { readFile, stat, mkdir, writeFile } from "node:fs/promises"
 import { basename, join, resolve } from "node:path"
 import { pathToFileURL, fileURLToPath } from "node:url"
 import { homedir } from "node:os"
-import sharp from "sharp"
+import { sharp } from "./image-codec"
 import type { ContentBlock } from "@agentclientprotocol/sdk"
 import type { NativeRenderer } from "@gpuiv/vue"
 export interface Attachment { path: string; name: string; image: boolean }

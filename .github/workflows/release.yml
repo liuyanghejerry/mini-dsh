@@ -1,0 +1,49 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify tag matches both manifests
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync("package.json")); const g=JSON.parse(fs.readFileSync("gpuiv.package.json")); if(process.env.RELEASE_TAG!==`v${p.version}` || p.version!==g.version) throw Error("Release tag and manifest versions must match")'
+  build:
+    needs: version
+    uses: ./.github/workflows/build-appimage.yml
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: mini-dsh-linux-x64
+          path: release
+      - name: Publish verified AppImage and checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cd release
+          sha256sum -c SHA256SUMS
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" ./*.AppImage SHA256SUMS --clobber
+          else
+            flags=()
+            if [[ "$RELEASE_TAG" == *-* ]]; then flags+=(--prerelease); fi
+            gh release create "$RELEASE_TAG" ./*.AppImage SHA256SUMS --verify-tag --title "mini-dsh $RELEASE_TAG" --generate-notes "${flags[@]}"
+          fi

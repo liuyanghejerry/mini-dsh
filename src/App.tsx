@@ -24,6 +24,7 @@ export const App = defineComponent({
     return () => <div testId="app-root" style={{
       userSelect: "none", position: "relative", display: "flex", flexDirection: "row", alignItems: "stretch",
       width: "100%", height: "100%", backgroundColor: palette.cream, color: palette.body,
+      borderRadius: 14, overflow: "hidden",
       fontFamily: fonts.sans,
     }}>
       <Sidebar store={store} />

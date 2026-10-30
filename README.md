@@ -73,7 +73,7 @@ bun run package:appimage
 
 AppImage 输出为 `dist/package/mini-dsh-0.1.0-linux-x86_64.AppImage`。打包包含 `LICENSE`、`NOTICE` 和 `licenses/`，不包含本地会话、凭据或测试工作区。
 
-当前 AppImage 面向 Linux x64；本机原生构建要求 glibc 2.43+，并依赖系统 X11/XKB。旧发行版需要另做兼容构建。首次运行会释放内嵌的 dsh 运行时。
+默认发行 Linux x64 AppImage。GitHub Actions 在 Ubuntu 24.04 构建，面向该版本及更新的兼容发行版；本机自行打包的 glibc 要求取决于构建环境。仍需系统图形驱动和 X11/XKB 等运行库。首次运行会释放内嵌的 dsh 运行时。
 
 ## 验证
 
@@ -98,3 +98,12 @@ mini dsh 自有代码采用 [MIT License](LICENSE)。第三方组件仍遵循各
 - [Vue](https://github.com/vuejs/core)：Vue 3 与响应式系统，MIT。
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)：官方 dsh 和 ACP harness，MIT；其依赖保留各自的许可证。
 - [Agent Client Protocol TypeScript SDK](https://github.com/agentclientprotocol/typescript-sdk)：ACP 客户端协议支持，Zed Industries，Apache-2.0。
+
+## CI 与 GitHub Release
+
+- 推送 `main`、提交 PR 或手动运行 CI：类型检查、回归测试、构建 AppImage、解包后运行无凭据 `--self-test`，并上传 AppImage 和 SHA256SUMS 构建产物（保留 14 天）。
+- 推送 `v*` 标签：校验标签与 `package.json`、`gpuiv.package.json` 的版本一致，使用同一构建流程，成功后创建 GitHub Release，上传 AppImage 和校验文件。含连字符的版本作为预发布。
+- 发布示例：将两个清单版本都更新为 `0.1.1` 并提交后，执行 `git tag v0.1.1`、`git push origin v0.1.1`。普通代码推送不会发布版本。
+- GPUIV 固定在工作流指定的提交；升级时需同步修改 checkout 的 SHA 和原生缓存键。Bun、uv 和 dsh 运行时也固定版本。
+- Release 仅发布任务具有 `contents: write`；检查和构建无需账号凭据。GUI 鼠标交互仍需另行验证。
+- 源码运行可执行 `bun run install:desktop` 安装当前用户的启动项与小熊图标；启动项指向当前 checkout。

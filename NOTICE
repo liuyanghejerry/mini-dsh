@@ -45,3 +45,10 @@ licenses/Apache-2.0.txt.
 AppImage build-time wrapper
 AppImage appimagetool and type2-runtime retain their own licenses and notices.
 They are build-time packaging infrastructure, not a change to mini-dsh's license.
+
+Image clipboard and attachment processing
+sharp (Apache-2.0), libvips (LGPL-3.0-or-later), and their dependencies are
+bundled with Linux releases. Their license texts and notices are included
+inside node_modules/sharp and node_modules/@img/sharp-libvips-linux-x64.
+https://github.com/lovell/sharp
+https://github.com/libvips/libvips

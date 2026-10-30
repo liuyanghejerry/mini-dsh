@@ -1,0 +1,89 @@
+name: Build AppImage
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  appimage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GPUIV_ROOT: ${{ github.workspace }}/.ci/gpuiv
+      CARGO_BUILD_JOBS: '2'
+      CARGO_PROFILE_RELEASE_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: liuyanghejerry/gpuiv
+          ref: 03a74a6b76a1f20ef65cbab547c9a1bd22c55b8d
+          path: .ci/gpuiv
+          submodules: recursive
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.3'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.9.7'
+      - name: Free runner disk space for the native build
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update -o Acquire::Retries=3
+          sudo apt-get install -y clang libfontconfig-dev libwayland-dev libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libvulkan1 desktop-file-utils
+      - name: Install GPUIV dependencies
+        working-directory: .ci/gpuiv
+        run: bun install --frozen-lockfile
+      - name: Cache native binding
+        id: native
+        uses: actions/cache@v4
+        with:
+          path: .ci/gpuiv/packages/native/*.node
+          key: gpuiv-linux-x64-ubuntu24-03a74a6b76a1f20ef65cbab547c9a1bd22c55b8d
+      - name: Install pinned Rust toolchain
+        if: steps.native.outputs.cache-hit != 'true'
+        working-directory: .ci/gpuiv
+        run: rustup show
+      - name: Build native binding
+        if: steps.native.outputs.cache-hit != 'true'
+        working-directory: .ci/gpuiv/packages/native
+        run: bun run build:release --target x86_64-unknown-linux-gnu
+      - name: Build Vue and Animal Island
+        working-directory: .ci/gpuiv
+        run: |
+          bun run --cwd packages/vue build
+          bun run --cwd packages/animal-island build
+      - name: Install application and runtime
+        run: |
+          bun install --frozen-lockfile
+          bun run setup:dsh
+      - name: Check application
+        run: |
+          bun run typecheck
+          bun run test
+          desktop-file-validate packaging/mini-dsh.desktop
+      - name: Build AppImage
+        run: bun run package:appimage
+      - name: Verify extracted release without a desktop or credentials
+        run: |
+          artifact=$(find dist/package -maxdepth 1 -name '*.AppImage' -print -quit)
+          test -n "$artifact"
+          artifact=$(realpath "$artifact")
+          mkdir -p dist/smoke
+          cd dist/smoke
+          "$artifact" --appimage-extract > /dev/null
+          mkdir -p home
+          HOME="$PWD/home" DSH_HOME="$PWD/home/dsh" APPDIR="$PWD/squashfs-root" ./squashfs-root/AppRun --self-test
+          cd ../package
+          sha256sum *.AppImage > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mini-dsh-linux-x64
+          path: |
+            dist/package/*.AppImage
+            dist/package/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14

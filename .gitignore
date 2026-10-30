@@ -7,3 +7,5 @@ vendor/dsh-runtime/
 .env
 .env.*
 !.env.example
+
+.ci/

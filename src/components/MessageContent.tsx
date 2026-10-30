@@ -29,9 +29,12 @@ export const MessageContent = defineComponent({
       try { if (!renderer) return; await copyImage(source, renderer); notice.value = "图片已复制" }
       catch (error) { notice.value = `复制图片失败：${String(error)}` }
     }
-    return () => <div style={{ display: "flex", flexDirection: "column" }}>
-      {contentParts(props.source).map((part, index) => part.image ? <div key={index} style={{ position: "relative", marginTop: 8, marginBottom: 8 }}>
-        <img src={part.image} alt={part.alt} onContextMenu={() => { menu.value = index }} style={{ maxWidth: "100%", maxHeight: 320, userSelect: "none" }} />
+    return () => <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+      {contentParts(props.source).map((part, index) => part.image ? <div key={index} style={{ position: "relative", flexShrink: 0, marginTop: 8, marginBottom: 8 }}>
+        <div style={{ width: "100%", height: 320, minHeight: 320, flexShrink: 0, overflow: "hidden", borderRadius: 8 }}>
+          <img src={part.image} alt={part.alt} objectFit="contain" onContextMenu={() => { menu.value = index }}
+            style={{ width: 640, height: 320, maxWidth: "100%", flexShrink: 0, userSelect: "none" }} />
+        </div>
         {menu.value === index ? <ContextMenu close={() => { menu.value = null }} actions={[
           { label: "复制图片", run: () => { void copy(part.image!) } },
           { label: "复制图片地址", run: () => renderer?.writeClipboardText?.(part.image!) },

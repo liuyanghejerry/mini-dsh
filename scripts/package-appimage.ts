@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs"
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { copyDistributionNotices } from "./distribution-notices"
@@ -71,6 +71,8 @@ export async function packageAppImage() {
   mkdirSync(resolve(appDir, "usr/share/applications"), { recursive: true })
   mkdirSync(resolve(appDir, "usr/share/icons/hicolor/scalable/apps"), { recursive: true })
   copyFileSync(executable, resolve(appDir, "usr/bin/mini-dsh"))
+  copyFileSync(resolve(executable, "../sharp-runtime.cjs"), resolve(appDir, "usr/bin/sharp-runtime.cjs"))
+  cpSync(resolve(executable, "../node_modules"), resolve(appDir, "usr/bin/node_modules"), { recursive: true })
   for (const name of ["AppRun", "mini-dsh.desktop", "mini-dsh.svg"]) {
     copyFileSync(resolve(root, "packaging", name), resolve(appDir, name))
   }

@@ -1,3 +1,4 @@
+import { copyImageDependencies } from "./package-image-dependencies"
 import { spawnSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
@@ -28,6 +29,7 @@ run(resolve(gpuivRoot, "packages/packager/bin/gpuiv-packager.ts"), [
 const productName = "mini-dsh-linux-x64"
 const productDirectory = resolve(root, "dist/package", productName)
 copyDistributionNotices(productDirectory)
+await copyImageDependencies(productDirectory)
 const archive = spawnSync("tar", ["-czf", `${productDirectory}.tar.gz`, "-C", resolve(root, "dist/package"), productName], {
   cwd: root,
   stdio: "inherit",
