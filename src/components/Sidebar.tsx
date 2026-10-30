@@ -4,6 +4,7 @@ import type { StyleDesc } from "@gpuiv/vue"
 import type { ChatStore } from "../state/chat"
 import { palette } from "../theme"
 import { Glyph } from "./Glyph"
+import appLogo from "../../packaging/mini-dsh.svg" with { type: "file" }
 
 const rowStyle: StyleDesc = {
   display: "flex",
@@ -30,7 +31,7 @@ export const Sidebar = defineComponent({
           paddingLeft: 20, paddingRight: 20,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Icon name="Bear" size={38} />
+            <img testId="app-logo" src={appLogo} alt="mini-dsh 小熊 Logo" objectFit="contain" style={{ width: 38, height: 38, flexShrink: 0 }} />
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <text style={{ fontSize: 23, fontWeight: 900, color: palette.ink }}>mini dsh</text>
             </div>
