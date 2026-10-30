@@ -23,7 +23,7 @@ export const Sidebar = defineComponent({
       const store = props.store
       return <div testId="sidebar" style={{
         display: "flex", flexDirection: "column", flexShrink: 0,
-        width: 248, backgroundColor: palette.paper,
+        width: 248, backgroundColor: palette.paper, borderTopLeftRadius: 14, borderBottomLeftRadius: 14,
       }}>
         <div testId="sidebar-header" windowDragRegion style={{
           display: "flex", alignItems: "center", flexShrink: 0, minHeight: 60,

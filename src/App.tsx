@@ -28,7 +28,7 @@ export const App = defineComponent({
       fontFamily: fonts.sans,
     }}>
       <Sidebar store={store} />
-      <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, flexBasis: 0, minWidth: 0, minHeight: 0, height: "100%", backgroundColor: palette.cream }}>
+      <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, flexBasis: 0, minWidth: 0, minHeight: 0, height: "100%", backgroundColor: palette.cream, borderTopRightRadius: 14, borderBottomRightRadius: 14 }}>
         <div testId="main-header" windowDragRegion style={{ display: "flex", alignItems: "center", flexShrink: 0, gap: 12, minHeight: 60, paddingLeft: 32, paddingRight: 26 }}>
           <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, flexBasis: 0, minWidth: 0, gap: 5 }}>
             <text style={{ fontSize: 18, fontWeight: 800, color: palette.ink }}>{store.active.value.title}</text>

@@ -1,3 +1,4 @@
+import sharp from "sharp"
 import { mkdirSync, copyFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { resolve, join } from "node:path"
@@ -12,7 +13,12 @@ const icons = join(data, "icons", "hicolor", "scalable", "apps")
 mkdirSync(applications, { recursive: true })
 mkdirSync(icons, { recursive: true })
 copyFileSync(resolve(root, "packaging/mini-dsh.svg"), join(icons, "mini-dsh.svg"))
+const pngDirectory = join(data, "icons", "hicolor", "256x256", "apps")
+mkdirSync(pngDirectory, { recursive: true })
+const pngPath = join(pngDirectory, "mini-dsh.png")
+await sharp(resolve(root, "packaging/mini-dsh.svg")).resize(256, 256).png().toFile(pngPath)
+spawnSync("gtk-update-icon-cache", ["--force", "--ignore-theme-index", join(data, "icons", "hicolor")])
 const quote = (value: string) => `"${value.replace(/[%]/g, "%%").replace(/[\\"`$]/g, "\\$&")}"`
-writeFileSync(join(applications, "mini-dsh.desktop"), `[Desktop Entry]\nType=Application\nName=mini-dsh\nComment=DeepSeek desktop chat\nExec=${quote(process.execPath)} run ${quote(resolve(root, "src/main.tsx"))}\nPath=${root}\nIcon=mini-dsh\nStartupWMClass=mini-dsh\nTerminal=false\nCategories=Network;Chat;\n`)
+writeFileSync(join(applications, "mini-dsh.desktop"), `[Desktop Entry]\nType=Application\nName=mini-dsh\nComment=DeepSeek desktop chat\nExec=${quote(process.execPath)} run ${quote(resolve(root, "src/main.tsx"))}\nPath=${root}\nIcon=${pngPath}\nStartupWMClass=mini-dsh\nTerminal=false\nCategories=Network;Chat;\n`)
 spawnSync("update-desktop-database", [applications])
 console.log("Installed mini-dsh desktop entry and bear icon")

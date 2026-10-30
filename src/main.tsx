@@ -8,6 +8,8 @@ import { createApp } from "@gpuiv/vue"
 import { App } from "./App"
 import { closeAllRuntimes } from "./services/dsh-runtime"
 
+process.title = "mini-dsh"
+
 // Release smoke test: no window, credentials, network requests or user state.
 if (process.argv.includes("--self-test")) {
   const home = mkdtempSync(join(tmpdir(), "mini-dsh-smoke-"))
@@ -40,3 +42,4 @@ const app = createApp(App, {
   onRuntimeError: (error, info) => { console.error(`[mini-dsh] ${info}`, error) },
   onWindowShouldClose: () => { void closeApplication() },
 })
+app.renderer.setAppIdentity?.("mini-dsh", "mini-dsh")
