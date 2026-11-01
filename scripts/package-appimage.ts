@@ -73,6 +73,7 @@ export async function packageAppImage() {
   copyFileSync(executable, resolve(appDir, "usr/bin/mini-dsh"))
   copyFileSync(resolve(executable, "../sharp-runtime.cjs"), resolve(appDir, "usr/bin/sharp-runtime.cjs"))
   cpSync(resolve(executable, "../node_modules"), resolve(appDir, "usr/bin/node_modules"), { recursive: true })
+  cpSync(resolve(executable, "../dsh-runtime"), resolve(appDir, "usr/bin/dsh-runtime"), { recursive: true })
   for (const name of ["AppRun", "mini-dsh.desktop", "mini-dsh.svg"]) {
     copyFileSync(resolve(root, "packaging", name), resolve(appDir, name))
   }

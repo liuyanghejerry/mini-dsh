@@ -69,7 +69,7 @@ mini dsh 是一个基于官方 [DeepSeek Harness](https://github.com/deepseek-ai
 
 3. 在设置中配置 API Key 和工作区。如果已经使用官方 dsh，默认会读取 `~/.dsh` 中的会话；使用其他 home 时可在设置中选择。
 
-AppImage 已内置 dsh 运行时，无需为发行版安装 Bun 或单独安装 dsh。仍需系统图形驱动和 X11/XKB 等运行库；首次运行会释放内嵌运行时。
+AppImage 已内置 dsh 运行时，无需为发行版安装 Bun 或单独安装 dsh。仍需系统图形驱动和 X11/XKB 等运行库；dsh 运行时作为独立文件随包提供。
 
 <details>
 <summary><strong>已有 dsh 用户：数据位置与迁移</strong></summary>
@@ -126,7 +126,7 @@ bun run package:appimage
 
 AppImage 输出为 `dist/package/mini-dsh-0.1.0-linux-x86_64.AppImage`。打包包含 `LICENSE`、`NOTICE` 和 `licenses/`，不包含本地会话、凭据或测试工作区。
 
-默认发行 Linux x64 AppImage。GitHub Actions 在 Ubuntu 24.04 构建，面向该版本及更新的兼容发行版；本机自行打包的 glibc 要求取决于构建环境。仍需系统图形驱动和 X11/XKB 等运行库。首次运行会释放内嵌的 dsh 运行时。
+默认发行 Linux x64 AppImage。GitHub Actions 在 Ubuntu 24.04 构建，面向该版本及更新的兼容发行版；本机自行打包的 glibc 要求取决于构建环境。仍需系统图形驱动和 X11/XKB 等运行库。dsh 与 ripgrep 作为独立可执行文件随包分发。
 
 ## 验证
 

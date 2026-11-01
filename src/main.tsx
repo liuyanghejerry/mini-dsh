@@ -16,7 +16,7 @@ if (process.argv.includes("--self-test")) {
   try {
     const image = await sharp({ create: { width: 1, height: 1, channels: 4, background: "#fff" } }).png().toBuffer()
     if (!image.length) throw new Error("Image codec smoke test failed")
-    const assets = resolveDshRuntimeAssets(home)
+    const assets = resolveDshRuntimeAssets()
     execFileSync(assets.executable, ["--version"], { env: { PATH: process.env.PATH, HOME: home, DSH_HOME: home }, timeout: 20000 })
     execFileSync(assets.sidecar, ["--version"], { timeout: 20000 })
     console.log("mini-dsh self-test passed (image codec, dsh runtime, ripgrep)")

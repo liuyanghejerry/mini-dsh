@@ -104,7 +104,7 @@ export class DshWebReader implements DshHistoryReader {
 
   private async startProcess() {
     mkdirSync(this.options.dshHome, { recursive: true })
-    const executable = this.options.dshBin ?? resolveDshRuntimeAssets(this.options.dshHome).executable
+    const executable = this.options.dshBin ?? resolveDshRuntimeAssets().executable
     const child = spawn(executable, ["web", "--host", "127.0.0.1", "--port", "0", "--no-open"], {
       cwd: this.options.workspace,
       env: {

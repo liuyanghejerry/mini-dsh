@@ -52,7 +52,7 @@ export const Composer = defineComponent({
       const conversation = props.store.active.value
       const query = fileToken.value!.query
       const timer = setTimeout(() => {
-        void searchWorkspaceFiles(conversation.cwd, conversation.dshHome, query, abort.signal).then(result => {
+        void searchWorkspaceFiles(conversation.cwd, query, abort.signal).then(result => {
           if (!abort.signal.aborted) fileResults.value = result
         }).catch(cause => {
           if (!abort.signal.aborted) filesError.value = cause instanceof Error ? cause.message : String(cause)

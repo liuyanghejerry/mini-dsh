@@ -1,5 +1,6 @@
 import { copyImageDependencies } from "./package-image-dependencies"
 import { spawnSync } from "node:child_process"
+import { chmodSync, copyFileSync, mkdirSync } from "node:fs"
 import { resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { packageAppImage } from "./package-appimage"
@@ -26,6 +27,16 @@ run(packagerCli, [
 ])
 const productName = "mini-dsh-linux-x64"
 const productDirectory = resolve(root, "dist/package", productName)
+const runtimeDirectory = resolve(productDirectory, "dsh-runtime")
+mkdirSync(runtimeDirectory, { recursive: true })
+for (const [source, name] of [
+  ["dsh-linux-x64.bin", "deepseek-harness-sdk-runtime-linux-x64"],
+  ["dsh-linux-x64-rg.bin", "deepseek-harness-sdk-runtime-linux-x64-rg"],
+] as const) {
+  const destination = resolve(runtimeDirectory, name)
+  copyFileSync(resolve(root, "vendor/dsh-runtime/assets", source), destination)
+  chmodSync(destination, 0o755)
+}
 copyDistributionNotices(productDirectory)
 await copyImageDependencies(productDirectory)
 const archive = spawnSync("tar", ["-czf", `${productDirectory}.tar.gz`, "-C", resolve(root, "dist/package"), productName], {

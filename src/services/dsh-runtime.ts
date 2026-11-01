@@ -72,7 +72,7 @@ export class DshRuntime {
 
   private async startProcess() {
     mkdirSync(this.options.dshHome, { recursive: true })
-    const executable = this.options.dshBin ?? resolveDshRuntimeAssets(this.options.dshHome).executable
+    const executable = this.options.dshBin ?? resolveDshRuntimeAssets().executable
     const child = spawn(executable, ["--profile", "acp"], {
       cwd: this.options.workspace,
       env: {

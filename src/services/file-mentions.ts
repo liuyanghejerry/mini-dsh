@@ -37,9 +37,9 @@ export function filterFilePaths(paths: string[], query: string, limit = 20): str
 
 // The official Web fileReferences/list acquires a writer handle and conflicts
 // with ACP. Discover paths locally; dsh still owns reading and permissions.
-export async function searchWorkspaceFiles(cwd: string, dshHome: string, query: string, signal: AbortSignal): Promise<FileSearchResult> {
+export async function searchWorkspaceFiles(cwd: string, query: string, signal: AbortSignal): Promise<FileSearchResult> {
   signal.throwIfAborted()
-  const executable = resolveDshRuntimeAssets(dshHome).sidecar
+  const executable = resolveDshRuntimeAssets().sidecar
   const abort = AbortSignal.any([signal, AbortSignal.timeout(10_000)])
   return new Promise((resolve, reject) => {
     const child = spawn(executable, ["--files", "--hidden", "--null", "-g", "!.git", "-g", "!node_modules", "-g", "!.mini-dsh", "--", "."], { cwd, stdio: ["ignore", "pipe", "pipe"], signal: abort })
