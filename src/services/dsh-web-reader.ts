@@ -88,17 +88,30 @@ export class DshWebReader implements DshHistoryReader {
   private child?: ChildProcess
   private startPromise?: Promise<void>
   private closePromise?: Promise<void>
+  private idleTimer?: ReturnType<typeof setTimeout>
   private origin?: string
   private cookie?: string
   private startupOutput = ""
   private stderr = ""
+  private activeRequests = 0
   private closing = false
 
   constructor(private readonly options: DshWebReaderOptions) {}
 
   start(): Promise<void> {
     if (this.closing) throw new Error("dsh Web 只读进程已关闭")
-    this.startPromise ??= this.startProcess()
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer)
+      this.idleTimer = undefined
+    }
+    if (!this.startPromise) {
+      this.startPromise = this.closePromise
+        ? this.closePromise.then(() => {
+          this.closePromise = undefined
+          return this.startProcess()
+        })
+        : this.startProcess()
+    }
     return this.startPromise
   }
 
@@ -136,11 +149,11 @@ export class DshWebReader implements DshHistoryReader {
     })
     child.once("error", fail)
     child.once("exit", () => {
-      if (!this.closing) {
-        this.origin = undefined
-        this.cookie = undefined
-        this.startPromise = undefined
-      }
+      if (this.child !== child) return
+      this.child = undefined
+      this.origin = undefined
+      this.cookie = undefined
+      this.startPromise = undefined
       fail(new Error("dsh Web 只读进程提前退出"))
     })
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -168,7 +181,30 @@ export class DshWebReader implements DshHistoryReader {
     }
   }
 
+  private scheduleIdleStop() {
+    if (this.closing || this.activeRequests || !this.child || this.idleTimer) return
+    this.idleTimer = setTimeout(() => {
+      this.idleTimer = undefined
+      if (this.closing || this.activeRequests || !this.child) return
+      this.closePromise = this.closeProcess()
+      void this.closePromise.catch(error => {
+        console.error("[mini-dsh] 无法空闲关闭 dsh Web 只读进程", error)
+      }).finally(() => { this.closePromise = undefined })
+    }, 30_000)
+    this.idleTimer.unref()
+  }
+
   private async rpc(method: string, args: Record<string, unknown>): Promise<unknown> {
+    this.activeRequests += 1
+    try {
+      return await this.performRpc(method, args)
+    } finally {
+      this.activeRequests -= 1
+      this.scheduleIdleStop()
+    }
+  }
+
+  private async performRpc(method: string, args: Record<string, unknown>): Promise<unknown> {
     await this.start()
     if (!this.origin || !this.cookie) throw new Error("dsh Web 只读进程尚未连接")
     const rpcId = crypto.randomUUID()
@@ -256,16 +292,23 @@ export class DshWebReader implements DshHistoryReader {
   }
 
   close(): Promise<void> {
+    this.closing = true
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer)
+      this.idleTimer = undefined
+    }
     this.closePromise ??= this.closeProcess()
     return this.closePromise
   }
 
   private async closeProcess() {
-    this.closing = true
     this.origin = undefined
     this.cookie = undefined
     this.startupOutput = ""
+    this.stderr = ""
+    this.startPromise = undefined
     const child = this.child
+    this.child = undefined
     if (!child || child.exitCode !== null || child.signalCode !== null) return
     child.kill("SIGTERM")
     if (!await waitForExit(child, 4000)) {

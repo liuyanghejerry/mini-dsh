@@ -8,6 +8,8 @@ const location = import.meta.url.startsWith("file:///$bunfs/")
   ? join(dirname(process.execPath), "image-codec.cjs") : import.meta.url
 const require = createRequire(location)
 const packageName = ["sh", "arp"].join("")
-export const sharp: typeof Sharp = require(import.meta.url.startsWith("file:///$bunfs/")
-  ? join(dirname(process.execPath), "sharp-runtime.cjs")
-  : packageName)
+export function loadSharp(): typeof Sharp {
+  return require(import.meta.url.startsWith("file:///$bunfs/")
+    ? join(dirname(process.execPath), "sharp-runtime.cjs")
+    : packageName)
+}

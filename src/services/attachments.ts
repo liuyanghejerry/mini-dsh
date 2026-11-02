@@ -2,7 +2,7 @@ import { readFile, stat, mkdir, writeFile } from "node:fs/promises"
 import { basename, join, resolve } from "node:path"
 import { pathToFileURL, fileURLToPath } from "node:url"
 import { homedir } from "node:os"
-import { sharp } from "./image-codec"
+import { loadSharp } from "./image-codec"
 import type { ContentBlock } from "@agentclientprotocol/sdk"
 import type { NativeRenderer } from "@gpuiv/vue"
 export interface Attachment { path: string; name: string; image: boolean }
@@ -17,12 +17,12 @@ export async function clipboardImage(renderer: NativeRenderer): Promise<Attachme
   const directory = join(homedir(), ".cache", "mini-dsh", "attachments")
   await mkdir(directory, { recursive: true })
   const path = join(directory, `${crypto.randomUUID()}.png`)
-  await writeFile(path, await sharp(image.data, { raw: { width: image.width, height: image.height, channels: 4 } }).png().toBuffer())
+  await writeFile(path, await loadSharp()(image.data, { raw: { width: image.width, height: image.height, channels: 4 } }).png().toBuffer())
   return attachment(path)
 }
 export async function attachmentBlocks(files: Attachment[]): Promise<ContentBlock[]> {
   return Promise.all(files.map(async file => {
-    if (file.image) return { type: "image" as const, data: (await sharp(file.path).png().toBuffer()).toString("base64"), mimeType: "image/png" }
+    if (file.image) return { type: "image" as const, data: (await loadSharp()(file.path).png().toBuffer()).toString("base64"), mimeType: "image/png" }
     return { type: "resource_link" as const, uri: pathToFileURL(file.path).href, name: file.name }
   }))
 }
@@ -37,6 +37,6 @@ export async function copyImage(source: string, renderer: NativeRenderer): Promi
     const comma = source.indexOf(",")
     bytes = source.slice(0, comma).endsWith(";base64") ? Buffer.from(source.slice(comma + 1), "base64") : Buffer.from(decodeURIComponent(source.slice(comma + 1)))
   } else bytes = await readFile(source.startsWith("file:") ? fileURLToPath(source) : source)
-  const { data, info } = await sharp(bytes).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const { data, info } = await loadSharp()(bytes).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
   renderer.writeClipboardImage(data, info.width, info.height)
 }

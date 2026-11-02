@@ -2,14 +2,14 @@ import assert from "node:assert/strict"
 import { mkdtemp, writeFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { sharp } from "../src/services/image-codec"
+import { loadSharp } from "../src/services/image-codec"
 import type { NativeRenderer } from "@gpuiv/vue"
 import { attachment, attachmentBlocks, copyImage } from "../src/services/attachments"
 import { contentParts } from "../src/components/MessageContent"
 const directory = await mkdtemp(join(tmpdir(), "mini-dsh-attachments-"))
 try {
   const path = join(directory, "image.png")
-  await sharp({ create: { width: 2, height: 3, channels: 4, background: "#ff0000" } }).png().toFile(path)
+  await loadSharp()({ create: { width: 2, height: 3, channels: 4, background: "#ff0000" } }).png().toFile(path)
   const document = join(directory, "测试.txt")
   await writeFile(document, "test")
   const blocks = await attachmentBlocks([await attachment(path), await attachment(document)])

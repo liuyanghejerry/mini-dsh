@@ -648,7 +648,7 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     finally { metricsBusy = false }
   }
   const stopMetricsWatch = watch(() => [activeId.value, active.value.running, active.value.sessionId], () => { void refreshMetrics() })
-  const metricsTimer = setInterval(() => { void refreshMetrics() }, 5000)
+  const metricsTimer = setInterval(() => { if (active.value.running) void refreshMetrics() }, 5000)
   void ready.then(refreshMetrics)
 
   function dispose(): Promise<void> {

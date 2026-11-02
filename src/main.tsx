@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { sharp } from "./services/image-codec"
+import { loadSharp } from "./services/image-codec"
 import { resolveDshRuntimeAssets } from "./services/dsh-assets"
 import { createApp } from "@gpuiv/vue"
 import { App } from "./App"
@@ -14,7 +14,7 @@ process.title = "mini-dsh"
 if (process.argv.includes("--self-test")) {
   const home = mkdtempSync(join(tmpdir(), "mini-dsh-smoke-"))
   try {
-    const image = await sharp({ create: { width: 1, height: 1, channels: 4, background: "#fff" } }).png().toBuffer()
+    const image = await loadSharp()({ create: { width: 1, height: 1, channels: 4, background: "#fff" } }).png().toBuffer()
     if (!image.length) throw new Error("Image codec smoke test failed")
     const assets = resolveDshRuntimeAssets()
     execFileSync(assets.executable, ["--version"], { env: { PATH: process.env.PATH, HOME: home, DSH_HOME: home }, timeout: 20000 })
