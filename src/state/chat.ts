@@ -283,7 +283,6 @@ export function createChatStore(options: ChatStoreOptions = {}) {
 
   async function initialize() {
     try {
-      await runtime.start()
       let sessions: Array<SessionInfo | DshSessionSummary>
       if (history) {
         try {
@@ -436,7 +435,7 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     try {
       await ready
       if (disposed) return
-      const sessionId = await prepare(conversation)
+      const sessionId = conversation.sessionId ?? await prepare(conversation)
       if (history?.listSkills) {
         const skills = await history.listSkills(sessionId)
         if (!disposed) conversation.skillCommands = skills

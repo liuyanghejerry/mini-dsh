@@ -24,9 +24,10 @@ assert.equal(mergeCommands([{ name: "review-code", description: "ACP" }], skills
 let counter = 0
 let failCatalog = false
 let catalogCalls = 0
+let runtimeStarts = 0
 const prompts: string[] = []
 const runtime = {
-  start: async () => {}, close: async () => {}, listSessions: async () => [],
+  start: async () => { runtimeStarts++ }, close: async () => {}, listSessions: async () => [],
   newSession: async () => ({ sessionId: `session-${++counter}` }),
   resumeSession: async () => ({}),
   setConfig: async () => ({ configOptions: [] }),
@@ -47,7 +48,9 @@ const store = createChatStore({
 })
 try {
   await store.ready
+  assert.equal(runtimeStarts, 0, "History discovery must not start ACP")
   await Promise.all([store.loadCommands(), store.loadCommands()])
+  assert.equal(runtimeStarts, 1, "A new session starts ACP on demand")
   assert.equal(catalogCalls, 1, "Concurrent loads share one preparation")
   assert.deepEqual(store.commands.value, skills)
   assert.equal(store.active.value.items.length, 0, "Discovery must not send a prompt")
@@ -70,4 +73,28 @@ try {
   store.selectConversation(firstId)
   assert.deepEqual(store.commands.value, skills)
 } finally { await store.dispose() }
+
+let restoredRuntimeStarts = 0
+const restoredRuntime = {
+  start: async () => { restoredRuntimeStarts++ }, close: async () => {}, listSessions: async () => [],
+} as unknown as DshRuntime
+const restoredStore = createChatStore({
+  runtime: restoredRuntime, workspace: "/tmp", dshHome: "/tmp/mini-dsh-command-test", environmentApiKey: "",
+  storage: { load: () => ({ data: null, error: null }), save: () => {} },
+  history: {
+    start: async () => {}, close: async () => {},
+    listSessions: async () => [{ sessionId: "session-restored", cwd: "/tmp", title: "Restored", updatedAt: 1 }],
+    readHistory: async () => ({ items: [], hasMore: false, throughSeq: 0 }),
+    listSkills: async id => {
+      assert.equal(id, "session-restored")
+      return skills
+    },
+  },
+})
+try {
+  await restoredStore.ready
+  await restoredStore.loadCommands()
+  assert.equal(restoredRuntimeStarts, 0, "Existing sessions load skills through Web without ACP")
+  assert.deepEqual(restoredStore.commands.value, skills)
+} finally { await restoredStore.dispose() }
 console.log("Slash commands and session catalog regression checks passed")
