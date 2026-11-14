@@ -7,6 +7,7 @@ import {
   methods,
   ndJsonStream,
   PROTOCOL_VERSION,
+  type AgentCapabilities,
   type ClientConnection,
   type ContentBlock,
   type NewSessionResponse,
@@ -55,6 +56,7 @@ function waitForExit(child: ChildProcessWithoutNullStreams, milliseconds: number
 export class DshRuntime {
   private child?: ChildProcessWithoutNullStreams
   private connection?: ClientConnection
+  private capabilities?: AgentCapabilities
   private startPromise?: Promise<void>
   private closePromise?: Promise<void>
   private stderr = ""
@@ -103,7 +105,7 @@ export class DshRuntime {
     this.connection = connection
     try {
       let timer: ReturnType<typeof setTimeout> | undefined
-      await Promise.race([
+      const initialized = await Promise.race([
         connection.agent.request(methods.agent.initialize, {
           protocolVersion: PROTOCOL_VERSION,
           clientInfo: { name: "mini-dsh", version: "0.1.0" },
@@ -114,6 +116,7 @@ export class DshRuntime {
         }),
         new Promise<never>((_, reject) => { child.once("error", reject) }),
       ]).finally(() => { if (timer) clearTimeout(timer) })
+      this.capabilities = initialized.agentCapabilities
     } catch (error) {
       await this.close()
       throw this.error(error)
@@ -168,9 +171,18 @@ export class DshRuntime {
     await agent.notify(methods.agent.session.cancel, { sessionId })
   }
 
+  get canDeleteSessions(): boolean {
+    return Boolean(this.capabilities?.sessionCapabilities?.delete)
+  }
+
   async closeSession(sessionId: string): Promise<void> {
     const agent = await this.agent()
     await agent.request(methods.agent.session.close, { sessionId })
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    const agent = await this.agent()
+    await agent.request(methods.agent.session.delete, { sessionId })
   }
 
   async setConfig(sessionId: string, configId: string, value: string | boolean): Promise<SetSessionConfigOptionResponse> {

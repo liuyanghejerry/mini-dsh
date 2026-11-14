@@ -75,7 +75,7 @@ export function applyAcpUpdate(conversation: Conversation, update: SessionUpdate
       conversation.configOptions = update.configOptions
       break
     case "session_info_update":
-      if (typeof update.title === "string" && update.title.trim()) conversation.title = update.title
+      if (!conversation.titleCustomized && typeof update.title === "string" && update.title.trim()) conversation.title = update.title
       break
     case "usage_update": {
       const item = lastAssistant(conversation)

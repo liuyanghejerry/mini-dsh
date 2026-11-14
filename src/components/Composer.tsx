@@ -7,14 +7,15 @@ import { attachment, clipboardImage, type Attachment } from "../services/attachm
 import { formatSessionMetrics } from "../services/session-metrics"
 import { defineComponent, ref, computed, nextTick, watch, type PropType } from "vue"
 import { Button, Select, Switch, Tooltip, fonts } from "@gpuiv/animal-island"
-import { useGpuix, type HostNode, type EventPayload } from "@gpuiv/vue"
+import { useGpuix, type HostNode, type EventPayload, type KeyEvent } from "@gpuiv/vue"
 import type { ChatStore } from "../state/chat"
+import type { ChatMessage } from "../types"
 import { editorTheme, palette } from "../theme"
 import { Glyph } from "./Glyph"
 
 export const Composer = defineComponent({
   props: { store: { type: Object as PropType<ChatStore>, required: true } },
-  setup(props) {
+  setup(props, { expose }) {
     const composing = ref(false)
     const { renderer } = useGpuix()
     const editor = ref<HostNode | null>(null)
@@ -105,18 +106,25 @@ export const Composer = defineComponent({
       externalSelection.value = [...selection.value]
       focus()
     }
-    function onKeyDown(event: EventPayload) {
+    function onKeyDown(event: KeyEvent) {
       if (composing.value) return
       const key = event.key?.toLowerCase()
+      if (key === "escape" && (fileMenu.value || commandMenu.value)) {
+        filesDismissed.value = true
+        commandsDismissed.value = true
+        event.preventDefault()
+        event.stopPropagation()
+        return
+      }
       if (fileMenu.value) {
-        if (key === "escape") filesDismissed.value = true
-        else if (fileResults.value.paths.length && (key === "down" || key === "arrowdown" || key === "up" || key === "arrowup")) {
+        if (fileResults.value.paths.length && (key === "down" || key === "arrowdown" || key === "up" || key === "arrowup")) {
+          event.preventDefault()
           const step = key === "down" || key === "arrowdown" ? 1 : -1
           fileIndex.value = (fileIndex.value + step + fileResults.value.paths.length) % fileResults.value.paths.length
         }
       } else if (commandMenu.value) {
-        if (key === "escape") commandsDismissed.value = true
-        else if (matchingCommands.value.length && (key === "down" || key === "arrowdown" || key === "up" || key === "arrowup")) {
+        if (matchingCommands.value.length && (key === "down" || key === "arrowdown" || key === "up" || key === "arrowup")) {
+          event.preventDefault()
           const step = key === "down" || key === "arrowdown" ? 1 : -1
           commandIndex.value = (commandIndex.value + step + matchingCommands.value.length) % matchingCommands.value.length
         }
@@ -187,6 +195,17 @@ export const Composer = defineComponent({
         if (ok) pending.value[id] = (pending.value[id] ?? []).filter(file => !sent.includes(file))
       })
     }
+    function editMessage(message: ChatMessage) {
+      const id = props.store.activeId.value
+      props.store.draft.value = message.prompt ?? message.content
+      pending.value[id] = [...(message.attachments ?? [])]
+      const end = props.store.draft.value.length
+      selection.value = [end, end]
+      externalSelection.value = [end, end]
+      error.value = ""
+      focus()
+    }
+    expose({ editMessage })
     return () => {
       const store = props.store
       const streaming = store.isStreaming.value

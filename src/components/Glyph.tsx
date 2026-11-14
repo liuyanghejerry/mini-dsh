@@ -9,6 +9,7 @@ const paths = {
   send: '<path d="m6 11 6-6 6 6M12 5v14"/>',
   stop: '<rect x="6" y="6" width="12" height="12" rx="2" fill="#000" stroke="none"/>',
   down: '<path d="m7 10 5 5 5-5"/>',
+  up: '<path d="m7 14 5-5 5 5"/>',
   right: '<path d="m9 6 6 6-6 6"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
@@ -17,6 +18,10 @@ const paths = {
   minimize: '<path d="M6 12h12"/>',
   maximize: '<rect x="6" y="6" width="12" height="12" rx="1.5"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
+  more: '<circle cx="5" cy="12" r="1" fill="#000"/><circle cx="12" cy="12" r="1" fill="#000"/><circle cx="19" cy="12" r="1" fill="#000"/>',
+  edit: '<path d="m4 16-1 5 5-1L19 9l-4-4L4 16Z"/><path d="m13 7 4 4"/>',
+  pin: '<path d="m9 4 6 6M7 7l10 10M12 3l9 9-5 1-4 4-4-4 4-4 1-5Z"/><path d="m8 16-5 5"/>',
+  download: '<path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/>',
 } as const
 
 export type GlyphName = keyof typeof paths

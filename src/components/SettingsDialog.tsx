@@ -63,8 +63,17 @@ export const SettingsDialog = defineComponent({
           onSubmit={() => { void save() }} allowClear autoFocus placeholder={props.store.hasEnvironmentKey ? "留空使用环境变量或 dsh 凭据" : "输入 DeepSeek API Key"}
           style={{ userSelect: "text", marginTop: 10, marginBottom: 10 }} />
         <text style={{ fontSize: 12, lineHeight: 20, color: palette.muted }}>留空保留已有设置。密钥只传入 dsh 子进程，不写入界面缓存；也可使用 dsh 已保存的凭据。</text>
-        <text style={{ marginTop: 16, fontSize: 12, fontWeight: 700, color: palette.body }}>工作区</text>
-        <Input testId="workspace-input" modelValue={workspaceDraft.value} onChange={(value: string) => { workspaceDraft.value = value }} style={{ userSelect: "text", marginTop: 10 }} />
+        <text style={{ marginTop: 16, fontSize: 12, fontWeight: 700, color: palette.body }}>新对话默认工作区</text>
+        <div style={{ display: "flex", flexDirection: "row", gap: 8, marginTop: 10 }}>
+          <Input testId="workspace-input" modelValue={workspaceDraft.value} onChange={(value: string) => { workspaceDraft.value = value }} style={{ userSelect: "text", flexGrow: 1, flexBasis: 0, minWidth: 0 }} />
+          <Button testId="choose-workspace" onClick={() => {
+            renderer?.promptForPaths?.({ files: false, directories: true, multiple: false }, (cause, result) => {
+              if (cause) error.value = cause.message
+              else if (result.paths?.[0]) workspaceDraft.value = result.paths[0]
+            })
+          }}>{{ default: () => <text>选择目录</text> }}</Button>
+        </div>
+        <text style={{ marginTop: 6, fontSize: 12, lineHeight: 18, color: palette.muted }}>只影响之后新建的对话；已有会话继续使用各自的工作目录。</text>
         <text style={{ marginTop: 16, fontSize: 12, fontWeight: 700, color: palette.body }}>DSH_HOME</text>
         <Input testId="dsh-home-input" modelValue={homeDraft.value} onChange={(value: string) => { homeDraft.value = value }} style={{ userSelect: "text", marginTop: 10 }} />
         <Button testId="use-official-dsh-home" type="link" size="small" onClick={() => { homeDraft.value = officialDshHome() }}
@@ -81,6 +90,9 @@ export const SettingsDialog = defineComponent({
         <Button testId="check-updates" type="text" size="small" onClick={() => { props.onCheckUpdates(); props.onClose() }} style={{ alignSelf: "flex-start", marginTop: 12 }}>
           {{ default: () => <text>检查更新 · v{currentVersion}</text> }}
         </Button>
+        <text style={{ marginTop: 18, fontSize: 12, fontWeight: 700, color: palette.body }}>快捷键</text>
+        <text style={{ marginTop: 7, fontSize: 11, lineHeight: 18, color: palette.muted }}>Ctrl/Cmd+N 新对话 · Ctrl/Cmd+K 全局搜索 · Ctrl/Cmd+F 当前对话搜索</text>
+        <text style={{ fontSize: 11, lineHeight: 18, color: palette.muted }}>Ctrl/Cmd+E 导出 · Ctrl/Cmd+, 设置 · Ctrl+Tab 切换会话 · Esc 停止生成</text>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, marginTop: 24 }}>
           <Button type="text" size="small" onClick={() => { void clear() }} icon={<Glyph name="trash" size={13} />}>{{ default: () => <text>清除本次密钥</text> }}</Button>
           <div style={{ flexGrow: 1 }} />

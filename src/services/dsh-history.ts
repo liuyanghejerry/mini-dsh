@@ -30,7 +30,34 @@ export interface DshHistoryReader {
   start(): Promise<void>
   listSessions(): Promise<DshSessionSummary[]>
   readHistory(sessionId: string, throughSeq?: number, beforeSeq?: number): Promise<DshHistoryPage>
+  searchSessions?(query: string, signal?: AbortSignal): Promise<string[]>
   close(): Promise<void>
+}
+
+export async function searchHistorySessions(reader: DshHistoryReader, sessions: readonly DshSessionSummary[], query: string, signal?: AbortSignal): Promise<string[]> {
+  const keyword = query.trim().toLocaleLowerCase()
+  if (!keyword) return []
+  const matches = new Set<string>()
+  let next = 0
+  async function worker() {
+    while (next < sessions.length && !signal?.aborted) {
+      const session = sessions[next++]!
+      if (session.title.toLocaleLowerCase().includes(keyword)) { matches.add(session.sessionId); continue }
+      try {
+        let page = await reader.readHistory(session.sessionId)
+        while (true) {
+          if (page.items.some(item => item.kind === "message" && `${item.content}\n${item.reasoning ?? ""}`.toLocaleLowerCase().includes(keyword))) {
+            matches.add(session.sessionId)
+            break
+          }
+          if (!page.hasMore || page.beforeSeq === undefined || signal?.aborted) break
+          page = await reader.readHistory(session.sessionId, page.throughSeq, page.beforeSeq)
+        }
+      } catch { /* An unreadable session must not hide matches from the others. */ }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(3, sessions.length) }, worker))
+  return sessions.filter(session => matches.has(session.sessionId)).map(session => session.sessionId)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

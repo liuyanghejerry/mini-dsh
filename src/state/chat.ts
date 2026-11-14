@@ -8,6 +8,7 @@ import type { RequestPermissionRequest, RequestPermissionResponse, SessionConfig
 import { DshRuntime } from "../services/dsh-runtime"
 import { applyAcpUpdate, lastAssistant } from "../services/dsh-events"
 import { officialDshHome } from "../services/dsh-home"
+import { collectWorkspaces, workspaceLabel } from "../services/workspaces"
 import { DshWebReader } from "../services/dsh-web-reader"
 import type { DshHistoryPage, DshHistoryReader, DshSessionSummary } from "../services/dsh-history"
 import { createChatStorage, type ChatStorage } from "./storage"
@@ -82,8 +83,10 @@ export function createChatStore(options: ChatStoreOptions = {}) {
   const initial = restored.data
   const requestedHome = options.dshHome ?? process.env.DSH_HOME?.trim() ?? initial?.dshHome
   const runtimeHome = requestedHome ? resolve(requestedHome) : officialDshHome()
-  const cachedConversations = initial?.conversations.filter(item => item.dshHome === runtimeHome) ?? []
-  const conversations = ref<Conversation[]>([...(initial?.conversations ?? [])])
+  const removedSessionIds = ref(new Set(initial?.removedSessionIds ?? []))
+  const restoredConversations = initial?.conversations.filter(item => !item.sessionId || !removedSessionIds.value.has(item.sessionId)) ?? []
+  const cachedConversations = restoredConversations.filter(item => item.dshHome === runtimeHome)
+  const conversations = ref<Conversation[]>([...restoredConversations])
   if (!cachedConversations.length) conversations.value.push(createConversation(options.workspace ?? process.cwd(), runtimeHome))
   const initialActive = cachedConversations.find(item => item.id === initial?.activeId) ?? cachedConversations[0]
   const activeId = ref(initialActive?.id ?? conversations.value.find(item => item.dshHome === runtimeHome)!.id)
@@ -93,6 +96,11 @@ export function createChatStore(options: ChatStoreOptions = {}) {
   const model = ref(initial?.model ?? '["deepseek-official","deepseek-v4-flash"]')
   const reasoning = ref(initial?.reasoning ?? "high")
   const workspace = ref(options.workspace ?? initial?.workspace ?? process.cwd())
+  const recentWorkspaces = ref(collectWorkspaces(
+    [workspace.value],
+    initial?.recentWorkspaces,
+    initial?.conversations.map(conversation => conversation.cwd),
+  ))
   const dshHome = ref(runtimeHome)
   const history = options.history ?? (options.runtime ? undefined : new DshWebReader({
     workspace: workspace.value,
@@ -123,12 +131,45 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     get: () => reasoningValue.value !== "off",
     set: (value: boolean) => { void setReasoning(value ? "high" : "off") },
   })
+  const workspaceOptions = computed(() => collectWorkspaces(
+    [workspace.value],
+    recentWorkspaces.value,
+    conversations.value.filter(conversation => conversation.dshHome === runtimeHome).map(conversation => conversation.cwd),
+  ).map(path => ({ key: path, label: `${workspaceLabel(path)} · ${path}` })))
+  const historyMatches = ref<string[]>([])
+  const historySearching = ref(false)
+  const historySearchError = ref("")
+  let historySearchTimer: ReturnType<typeof setTimeout> | undefined
+  let historySearchAbort: AbortController | undefined
+  let historySearchGeneration = 0
+  watch(query, value => {
+    if (historySearchTimer) clearTimeout(historySearchTimer)
+    historySearchAbort?.abort()
+    const generation = ++historySearchGeneration
+    const keyword = value.trim()
+    historyMatches.value = []
+    historySearchError.value = ""
+    historySearching.value = keyword.length >= 2 && Boolean(history?.searchSessions)
+    if (keyword.length < 2 || !history?.searchSessions) return
+    historySearchAbort = new AbortController()
+    const signal = historySearchAbort.signal
+    historySearchTimer = setTimeout(() => {
+      void history.searchSessions!(keyword, signal).then(matches => {
+        if (generation === historySearchGeneration) historyMatches.value = matches
+      }).catch(error => {
+        if (generation === historySearchGeneration && !signal.aborted) historySearchError.value = errorMessage(error, [runtimeApiKey, options.baseUrl ?? ""])
+      }).finally(() => {
+        if (generation === historySearchGeneration) historySearching.value = false
+      })
+    }, 300)
+  })
   const filteredConversations = computed(() => {
     const keyword = query.value.trim().toLocaleLowerCase()
     return conversations.value
       .filter(item => item.dshHome === runtimeHome && (!keyword || item.title.toLocaleLowerCase().includes(keyword)
+        || (item.sessionId !== undefined && historyMatches.value.includes(item.sessionId))
         || item.items.some(entry => entry.kind === "message" && entry.content.toLocaleLowerCase().includes(keyword))))
-      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.updatedAt - a.updatedAt)
   })
 
   function snapshot(): PersistedChat {
@@ -139,10 +180,14 @@ export function createChatStore(options: ChatStoreOptions = {}) {
       reasoning: reasoning.value,
       workspace: workspace.value,
       dshHome: dshHome.value,
+      recentWorkspaces: collectWorkspaces([workspace.value], recentWorkspaces.value),
+      removedSessionIds: [...removedSessionIds.value],
       conversations: conversations.value.map(conversation => ({
         id: conversation.id,
         sessionId: conversation.sessionId,
         title: conversation.title,
+        titleCustomized: conversation.titleCustomized,
+        pinned: conversation.pinned,
         items: conversation.items,
         draft: conversation.draft,
         createdAt: conversation.createdAt,
@@ -294,6 +339,7 @@ export function createChatStore(options: ChatStoreOptions = {}) {
       } else {
         sessions = await runtime.listSessions()
       }
+      sessions = sessions.filter(info => !removedSessionIds.value.has(info.sessionId))
       const current = conversations.value.filter(item => item.dshHome === runtimeHome)
       const draft = current.length === 1 ? current[0] : undefined
       if (!cachedConversations.length && sessions.length && draft
@@ -305,7 +351,7 @@ export function createChatStore(options: ChatStoreOptions = {}) {
         for (const info of sessions) {
           const existing = conversations.value.find(item => item.sessionId === info.sessionId && item.dshHome === runtimeHome)
           if (existing) {
-            if (info.title) existing.title = info.title
+            if (info.title && !existing.titleCustomized) existing.title = info.title
             existing.cwd = info.cwd
             if (info.updatedAt) existing.updatedAt = typeof info.updatedAt === "number" ? info.updatedAt : Date.parse(info.updatedAt)
           } else {
@@ -343,7 +389,7 @@ export function createChatStore(options: ChatStoreOptions = {}) {
   function mergeHistory(conversation: Conversation, page: DshHistoryPage) {
     const existing = new Set(conversation.items.map(item => item.id))
     conversation.items = [...page.items.filter(item => !existing.has(item.id)), ...conversation.items]
-    if (page.title) conversation.title = page.title
+    if (page.title && !conversation.titleCustomized) conversation.title = page.title
   }
 
   async function readInitialHistory(conversation: Conversation, refresh = false) {
@@ -354,7 +400,7 @@ export function createChatStore(options: ChatStoreOptions = {}) {
       if (disposed || conversation.running) return
       // A fresh latest page replaces the old snapshot and its pagination cursor.
       conversation.items = page.items
-      if (page.title) conversation.title = page.title
+      if (page.title && !conversation.titleCustomized) conversation.title = page.title
       conversation.historyCached = true
       conversation.historyHasMore = page.hasMore
       conversation.historyThroughSeq = page.throughSeq
@@ -474,9 +520,10 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     const firstPrompt = !conversation.items.some(item => item.kind === "message" && item.role === "user")
     const user: ChatMessage = {
       kind: "message", id: `user-${crypto.randomUUID()}`, role: "user", content: [content, ...attachments.map(file => `[${file.image ? "图片" : "文件"}：${file.name}](${file.path})`)].filter(Boolean).join("\n"),
+      prompt: content, attachments: [...attachments],
       status: "done", createdAt: Date.now(), source: "dsh",
     }
-    if (firstPrompt) conversation.title = titleFor(content || attachments.map(file => file.name).join("、"))
+    if (firstPrompt && !conversation.titleCustomized) conversation.title = titleFor(content || attachments.map(file => file.name).join("、"))
     conversation.items.push(user)
     conversation.draft = ""
     conversation.updatedAt = Date.now()
@@ -541,18 +588,49 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     const conversation = active.value
     if (conversation.running) return
     const lastUser = conversation.items.findLast(item => item.kind === "message" && item.role === "user")
-    if (lastUser?.kind === "message") await send(lastUser.content)
+    if (lastUser?.kind === "message") await send(lastUser.prompt ?? lastUser.content, lastUser.attachments ?? [])
   }
 
-  async function deleteConversation(id: string) {
+  function renameConversation(id: string, value: string): boolean {
+    const conversation = conversations.value.find(item => item.id === id)
+    const title = value.replace(/\s+/g, " ").trim()
+    if (!conversation || !title) return false
+    conversation.title = Array.from(title).slice(0, 80).join("")
+    conversation.titleCustomized = true
+    scheduleSave()
+    return true
+  }
+
+  function togglePinned(id: string) {
     const conversation = conversations.value.find(item => item.id === id)
     if (!conversation) return
+    conversation.pinned = !conversation.pinned
+    scheduleSave()
+  }
+
+  async function deleteConversation(id: string): Promise<boolean> {
+    const conversation = conversations.value.find(item => item.id === id)
+    if (!conversation) return false
     if (conversation.sessionId) cancelPermission(conversation.sessionId)
     conversation.stopRequested = true
+    let hidden = false
     try {
-      if (conversation.sessionId && conversation.active) await runtime.closeSession(conversation.sessionId)
+      if (conversation.sessionId) {
+        if (conversation.active) {
+          if (conversation.running) await runtime.cancel(conversation.sessionId)
+          await runtime.closeSession(conversation.sessionId)
+        }
+        await runtime.start()
+        if (runtime.canDeleteSessions) await runtime.deleteSession(conversation.sessionId)
+        else {
+          removedSessionIds.value = new Set(removedSessionIds.value).add(conversation.sessionId)
+          hidden = true
+        }
+      }
     } catch (error) {
+      conversation.stopRequested = false
       fail(error)
+      return false
     }
     conversation.active = false
     conversation.running = false
@@ -563,7 +641,9 @@ export function createChatStore(options: ChatStoreOptions = {}) {
       conversations.value.push(draft)
       activeId.value = draft.id
     }
-    scheduleSave()
+    notice.value = hidden ? "当前 dsh 不支持永久删除；会话已从 mini dsh 隐藏，官方记录保留。" : conversation.sessionId ? "会话已永久删除。" : null
+    persistNow()
+    return true
   }
 
   async function setConfig(id: string, value: string) {
@@ -603,10 +683,8 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     if (values.workspace !== undefined) {
       const next = resolve(values.workspace)
       if (!statSync(next).isDirectory()) throw new Error("工作区不是有效目录")
-      if (next !== workspace.value) {
-        workspace.value = next
-        reconnectNeeded = true
-      }
+      if (next !== workspace.value) workspace.value = next
+      recentWorkspaces.value = collectWorkspaces([next], recentWorkspaces.value)
     }
     if (values.dshHome !== undefined) {
       const next = resolve(values.dshHome)
@@ -654,6 +732,9 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     if (disposePromise) return disposePromise
     disposed = true
     clearInterval(metricsTimer)
+    if (historySearchTimer) clearTimeout(historySearchTimer)
+    historySearchAbort?.abort()
+    historySearchGeneration++
     stopMetricsWatch()
     for (const sessionId of pendingPermissions.keys()) cancelPermission(sessionId)
     pendingPermissions.clear()
@@ -673,6 +754,8 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     activeId,
     filteredConversations,
     query,
+    historySearching,
+    historySearchError,
     draft: computed({
       get: () => active.value.draft ?? "",
       set: (value: string) => { active.value.draft = value; scheduleSave() },
@@ -684,6 +767,7 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     reasoningOptions,
     thinking,
     workspace,
+    workspaceOptions,
     dshHome,
     updatePreferences,
     connectionMode,
@@ -698,6 +782,8 @@ export function createChatStore(options: ChatStoreOptions = {}) {
     loadOlder,
     newConversation,
     selectConversation,
+    renameConversation,
+    togglePinned,
     deleteConversation,
     setModel,
     setReasoning,

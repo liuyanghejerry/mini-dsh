@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import type { ChatMessage, Conversation, PersistedChat, TimelineItem, ToolActivity } from "../types"
+import { collectWorkspaces } from "../services/workspaces"
 
 export interface LoadedChat extends Omit<PersistedChat, "conversations"> {
   conversations: Conversation[]
@@ -38,6 +39,19 @@ function optionalTime(value: unknown, name: string): number | undefined {
   return requiredTime(value, name)
 }
 
+function parseAttachments(value: unknown): ChatMessage["attachments"] {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value)) throw new Error("Invalid message attachments")
+  return value.map(entry => {
+    if (!isRecord(entry) || typeof entry.image !== "boolean") throw new Error("Invalid message attachment")
+    return {
+      path: requiredString(entry.path, "attachment path"),
+      name: requiredString(entry.name, "attachment name"),
+      image: entry.image,
+    }
+  })
+}
+
 function parseItem(value: unknown): TimelineItem {
   if (!isRecord(value)) throw new Error("Invalid timeline item")
   const id = requiredString(value.id, "item id")
@@ -51,6 +65,8 @@ function parseItem(value: unknown): TimelineItem {
       kind: "message", id, role: value.role, content: value.content,
       status: status === "streaming" ? "stopped" : status,
       createdAt,
+      prompt: optionalString(value.prompt, "message prompt"),
+      attachments: parseAttachments(value.attachments),
       reasoning: optionalString(value.reasoning, "reasoning"),
       source: "dsh",
       model: optionalString(value.model, "model"),
@@ -94,6 +110,8 @@ function parseConversation(value: unknown): Conversation {
     id: requiredString(value.id, "conversation id"),
     sessionId: optionalString(value.sessionId, "session id"),
     title: requiredString(value.title, "conversation title"),
+    titleCustomized: value.titleCustomized === true,
+    pinned: value.pinned === true,
     items: value.items.map(parseItem),
     draft: optionalString(value.draft, "draft"),
     createdAt: requiredTime(value.createdAt, "conversation creation time"),
@@ -117,17 +135,31 @@ function parse(value: unknown): PersistedChat {
   if (!conversations.length) throw new Error("No conversations")
   const activeId = requiredString(value.activeId, "active conversation")
   if (!conversations.some(conversation => conversation.id === activeId)) throw new Error("Missing active conversation")
+  const workspace = requiredString(value.workspace, "workspace")
+  const savedWorkspaces = value.recentWorkspaces === undefined ? [] : value.recentWorkspaces
+  if (!Array.isArray(savedWorkspaces)) throw new Error("Invalid recent workspaces")
+  const recentWorkspaces = collectWorkspaces(
+    savedWorkspaces.map((path, index) => requiredString(path, `recent workspace ${index}`)),
+    [workspace],
+    conversations.map(conversation => conversation.cwd),
+  )
+  const removedSessionIds = value.removedSessionIds ?? []
+  if (!Array.isArray(removedSessionIds)) throw new Error("Invalid removed sessions")
   return {
     version: 2,
     activeId,
     model: requiredString(value.model, "model"),
     reasoning: requiredString(value.reasoning, "reasoning"),
-    workspace: requiredString(value.workspace, "workspace"),
+    workspace,
     dshHome: requiredString(value.dshHome, "DSH_HOME"),
+    recentWorkspaces,
+    removedSessionIds: removedSessionIds.map((id, index) => requiredString(id, `removed session ${index}`)),
     conversations: conversations.map(conversation => ({
       id: conversation.id,
       sessionId: conversation.sessionId,
       title: conversation.title,
+      titleCustomized: conversation.titleCustomized,
+      pinned: conversation.pinned,
       items: conversation.items,
       draft: conversation.draft,
       createdAt: conversation.createdAt,
