@@ -1,7 +1,7 @@
 import { UpdateNotice } from "./components/UpdateNotice"
 import { defineComponent, onBeforeUnmount, ref, watch } from "vue"
 import { Button, Tag, Tooltip, fonts, provideTheme } from "@gpuiv/animal-island"
-import { promptForNewPath, useGpuix, type KeyEvent } from "@gpuiv/vue"
+import { promptForNewPath, useGpuix } from "@gpuiv/vue"
 import { loadMiniDshFonts } from "./services/animal-fonts"
 import { createChatStore } from "./state/chat"
 import { Composer } from "./components/Composer"
@@ -15,7 +15,7 @@ import { palette } from "./theme"
 import type { ChatMessage } from "./types"
 import { TaskNotificationTracker, type TaskNotice } from "./services/task-notifications"
 import { conversationFileName, conversationToMarkdown, writeConversationMarkdown } from "./services/conversation-export"
-import { shortcutAction } from "./services/keyboard-shortcuts"
+import { shortcutAction, type ShortcutEvent } from "./services/keyboard-shortcuts"
 
 export const App = defineComponent({
   name: "MiniDshApp",
@@ -77,7 +77,7 @@ export const App = defineComponent({
       const next = current < 0 ? (step > 0 ? 0 : list.length - 1) : (current + step + list.length) % list.length
       store.selectConversation(list[next]!.id)
     }
-    function onGlobalKeyDown(event: KeyEvent) {
+    function onGlobalKeyDown(event: ShortcutEvent) {
       const action = shortcutAction(event, { blocked: settingsOpen.value || Boolean(store.pendingPermission.value), streaming: store.isStreaming.value })
       if (!action) return
       event.preventDefault()

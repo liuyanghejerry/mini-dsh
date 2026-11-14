@@ -6,6 +6,11 @@ interface ShortcutInput {
   modifiers?: { ctrl?: boolean; cmd?: boolean; shift?: boolean }
 }
 
+export interface ShortcutEvent extends ShortcutInput {
+  preventDefault(): void
+  stopPropagation(): void
+}
+
 export function shortcutAction(event: ShortcutInput, options: { blocked: boolean; streaming: boolean }): ShortcutAction | null {
   if (event.defaultPrevented) return null
   const key = event.key?.toLowerCase()

@@ -7,7 +7,8 @@ import { attachment, clipboardImage, type Attachment } from "../services/attachm
 import { formatSessionMetrics } from "../services/session-metrics"
 import { defineComponent, ref, computed, nextTick, watch, type PropType } from "vue"
 import { Button, Select, Switch, Tooltip, fonts } from "@gpuiv/animal-island"
-import { useGpuix, type HostNode, type EventPayload, type KeyEvent } from "@gpuiv/vue"
+import { useGpuix, type HostNode, type EventPayload } from "@gpuiv/vue"
+import type { ShortcutEvent } from "../services/keyboard-shortcuts"
 import type { ChatStore } from "../state/chat"
 import type { ChatMessage } from "../types"
 import { editorTheme, palette } from "../theme"
@@ -106,7 +107,7 @@ export const Composer = defineComponent({
       externalSelection.value = [...selection.value]
       focus()
     }
-    function onKeyDown(event: KeyEvent) {
+    function onKeyDown(event: ShortcutEvent) {
       if (composing.value) return
       const key = event.key?.toLowerCase()
       if (key === "escape" && (fileMenu.value || commandMenu.value)) {
