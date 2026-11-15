@@ -20,7 +20,7 @@
     "package:appimage": "bun scripts/package.ts --appimage",
     "postinstall": "bun scripts/link-local.ts",
     "test:skills-runtime": "bun scripts/check-skills-runtime.ts",
-    "test": "bun scripts/check-file-mentions.ts && bun scripts/check-commands.ts && bun scripts/check-history.ts && bun scripts/check-metrics.ts && bun scripts/check-attachments.ts && bun scripts/check-updates.ts && bun test scripts/release-notes.test.mjs"
+    "test": "bun scripts/check-file-mentions.ts && bun scripts/check-workspaces.ts && bun scripts/check-diffs.ts && bun scripts/check-retry.ts && bun scripts/check-conversations.ts && bun scripts/check-search.ts && bun scripts/check-task-notifications.ts && bun scripts/check-export.ts && bun scripts/check-shortcuts.ts && bun scripts/check-commands.ts && bun scripts/check-history.ts && bun scripts/check-metrics.ts && bun scripts/check-attachments.ts && bun scripts/check-updates.ts && bun test scripts/release-notes.test.mjs"
   },
   "gpuiv": {
     "root": "../gpuiv"

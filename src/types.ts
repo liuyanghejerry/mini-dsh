@@ -1,4 +1,5 @@
 import type { AvailableCommand, SessionConfigOption, ToolCallContent, ToolCallLocation, ToolCallStatus, ToolKind } from "@agentclientprotocol/sdk"
+import type { Attachment } from "./services/attachments"
 
 export type MessageRole = "user" | "assistant"
 export type MessageStatus = "streaming" | "done" | "stopped" | "error"
@@ -15,6 +16,8 @@ export interface ChatMessage {
   id: string
   role: MessageRole
   content: string
+  prompt?: string
+  attachments?: Attachment[]
   reasoning?: string
   status: MessageStatus
   createdAt: number
@@ -43,6 +46,8 @@ export interface Conversation {
   id: string
   sessionId?: string
   title: string
+  titleCustomized?: boolean
+  pinned?: boolean
   items: TimelineItem[]
   draft?: string
   createdAt: number
@@ -79,6 +84,8 @@ export interface PersistedChat {
   reasoning: string
   workspace: string
   dshHome: string
+  recentWorkspaces: string[]
+  removedSessionIds: string[]
   conversations: PersistedConversation[]
 }
 

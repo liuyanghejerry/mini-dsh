@@ -4,7 +4,7 @@ import { spawn, type ChildProcess } from "node:child_process"
 import { mkdirSync } from "node:fs"
 import { basename, resolve } from "node:path"
 import { resolveDshRuntimeAssets } from "./dsh-assets"
-import { mapHistoryRecords, type DshHistoryPage, type DshHistoryReader, type DshSessionSummary, type DshWireEvent } from "./dsh-history"
+import { mapHistoryRecords, searchHistorySessions, type DshHistoryPage, type DshHistoryReader, type DshSessionSummary, type DshWireEvent } from "./dsh-history"
 
 export interface DshWebReaderOptions {
   workspace: string
@@ -241,6 +241,10 @@ export class DshWebReader implements DshHistoryReader {
         updatedAt: typeof item.updatedAt === "number" && Number.isFinite(item.updatedAt) ? item.updatedAt : Date.now(),
       }]
     })
+  }
+
+  async searchSessions(query: string, signal?: AbortSignal): Promise<string[]> {
+    return searchHistorySessions(this, await this.listSessions(), query, signal)
   }
 
   async listSkills(sessionId: string) {

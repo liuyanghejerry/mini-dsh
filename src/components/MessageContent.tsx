@@ -20,7 +20,11 @@ export function contentParts(source: string): Array<{ text: string; image?: stri
   return parts
 }
 export const MessageContent = defineComponent({
-  props: { source: { type: String, required: true }, onLinkClick: { type: Function as PropType<(event: EventPayload) => void>, required: true } },
+  props: {
+    source: { type: String, required: true },
+    query: { type: String, default: "" },
+    onLinkClick: { type: Function as PropType<(event: EventPayload) => void>, required: true },
+  },
   setup(props) {
     const { renderer } = useGpuix()
     const menu = ref<number | null>(null)
@@ -39,7 +43,7 @@ export const MessageContent = defineComponent({
           { label: "复制图片", run: () => { void copy(part.image!) } },
           { label: "复制图片地址", run: () => renderer?.writeClipboardText?.(part.image!) },
         ]} /> : null}
-      </div> : <markdown key={index} source={part.text} theme={markdownTheme} style={{ userSelect: "text" }} onLinkClick={props.onLinkClick} />)}
+      </div> : <markdown key={index} source={part.text} theme={markdownTheme} highlight={props.query ? { query: props.query } : null} style={{ userSelect: "text" }} onLinkClick={props.onLinkClick} />)}
       {notice.value ? <text role="status" style={{ fontSize: 12, color: palette.muted }}>{notice.value}</text> : null}
     </div>
   },

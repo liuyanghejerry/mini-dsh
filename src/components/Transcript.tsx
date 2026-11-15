@@ -1,12 +1,14 @@
 import { MessageContent } from "./MessageContent"
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch, type PropType } from "vue"
-import { Button, Card, Icon, Tag, activationKeys } from "@gpuiv/animal-island"
+import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch, type PropType } from "vue"
+import { Button, Card, Icon, Input, Tag, activationKeys } from "@gpuiv/animal-island"
 import { VirtualList, useGpuix, type EventPayload, type VirtualListInstance } from "@gpuiv/vue"
 import type { ChatMessage, Conversation, ToolActivity } from "../types"
 import { palette, reasoningTheme } from "../theme"
 import { groupTranscript, processSummary } from "../services/transcript-rows"
 import { Glyph } from "./Glyph"
+import { DiffCard } from "./DiffCard"
 import { resolve, isAbsolute } from "node:path"
+import { pathToFileURL } from "node:url"
 
 function resolveImages(source: string, cwd: string): string {
   return source.replace(/(!\[[^\]]*\]\()([^\s)]+)(\s*(?:"[^"]*")?\))/g, (match, prefix: string, url: string, suffix: string) => {
@@ -54,30 +56,46 @@ const EmptyState = defineComponent({
 function detail(activity: ToolActivity): string {
   const text = activity.content?.flatMap(entry => {
     if (entry.type === "content" && entry.content.type === "text") return [entry.content.text]
-    if (entry.type === "diff") return [entry.path]
     return []
   }).filter(Boolean).join("\n")
-  const raw = text || (activity.rawInput !== undefined ? JSON.stringify(activity.rawInput, null, 2) : activity.rawOutput !== undefined ? JSON.stringify(activity.rawOutput, null, 2) : "")
-  return (raw || "dsh 未提供详细输出").slice(0, 4000)
+  return text || (activity.rawInput !== undefined ? JSON.stringify(activity.rawInput, null, 2) : activity.rawOutput !== undefined ? JSON.stringify(activity.rawOutput, null, 2) : "")
 }
 
 const ToolRow = defineComponent({
   props: { activity: { type: Object as PropType<ToolActivity>, required: true } },
   setup(props) {
+    const { renderer } = useGpuix()
     const expanded = ref(false)
+    const showFull = ref(false)
     return () => {
       const activity = props.activity
+      const diffs = activity.content?.flatMap(entry => entry.type === "diff" ? [entry] : []) ?? []
+      const raw = detail(activity)
       return <div testId={`tool-${activity.id}`} style={{ marginTop: 8, padding: 12, borderRadius: 13, backgroundColor: "#f5f0e5" }}>
         <div testId={`tool-toggle-${activity.id}`} role="button" tabIndex={0} aria-label="切换工具详情" aria-expanded={expanded.value}
           onClick={() => { expanded.value = !expanded.value }} onKeyDown={activationKeys(() => { expanded.value = !expanded.value })}
           style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
           <Glyph name={expanded.value ? "down" : "right"} size={12} color={palette.muted} />
           <text style={{ flexGrow: 1, fontSize: 12, fontWeight: 700, color: palette.body }}>{activity.title}</text>
+          {diffs.length ? <Tag size="small" variant="soft">{{ default: () => <text>{diffs.length} 个文件变更</text> }}</Tag> : null}
           <Tag size="small" variant="soft" color={activity.status === "completed" ? "app-green" : activity.status === "failed" ? "app-red" : "app-orange"}>
             {{ default: () => <text>{activity.status === "completed" ? "已完成" : activity.status === "failed" ? "失败" : activity.status === "in_progress" ? "执行中" : "等待"}</text> }}
           </Tag>
         </div>
-        {expanded.value ? <text style={{ userSelect: "text", marginTop: 8, fontSize: 11, lineHeight: 18, color: palette.muted }}>{detail(activity)}</text> : null}
+        {expanded.value ? <div style={{ marginTop: 8 }}>
+          {activity.locations?.map(location => <Button type="link" size="small" onClick={() => {
+            const url = pathToFileURL(location.path).href
+            renderer?.openUrl?.(`${url}${location.line ? `#L${location.line}` : ""}`)
+          }} style={{ alignSelf: "flex-start", paddingLeft: 0 }}>
+            {{ default: () => <text style={{ fontSize: 11 }}>{`${location.path}${location.line ? `:${location.line}` : ""}`}</text> }}
+          </Button>)}
+          {diffs.map(diff => <DiffCard value={diff} />)}
+          {raw ? <text style={{ userSelect: "text", fontSize: 11, lineHeight: 18, color: palette.muted }}>{showFull.value ? raw : raw.slice(0, 4000)}</text> : null}
+          {raw.length > 4000 ? <Button type="link" size="small" onClick={() => { showFull.value = !showFull.value }} style={{ alignSelf: "flex-start", paddingLeft: 0 }}>
+            {{ default: () => <text>{showFull.value ? "收起输出" : `查看完整输出（${raw.length} 字符）`}</text> }}
+          </Button> : null}
+          {!raw && !diffs.length && !activity.locations?.length ? <text style={{ fontSize: 11, color: palette.muted }}>dsh 未提供详细输出</text> : null}
+        </div> : null}
       </div>
     }
   },
@@ -88,7 +106,10 @@ const MessageRow = defineComponent({
     message: { type: Object as PropType<ChatMessage>, required: true },
     latest: { type: Boolean, default: false },
     onRetry: { type: Function as PropType<() => void>, required: true },
+    onEdit: { type: Function as PropType<(message: ChatMessage) => void>, required: true },
     cwd: { type: String, required: true },
+    searchQuery: { type: String, default: "" },
+    searchActive: { type: Boolean, default: false },
   },
   setup(props) {
     const { renderer } = useGpuix()
@@ -109,18 +130,24 @@ const MessageRow = defineComponent({
     return () => {
       const item = props.message
       if (item.role === "user") {
-        return <div testId={`message-${item.id}`} style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", width: "100%", paddingTop: 14, paddingBottom: 14, paddingLeft: 32, paddingRight: 32 }}>
+        return <div testId={`message-${item.id}`} style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", width: "100%", paddingTop: 14, paddingBottom: 14, paddingLeft: 32, paddingRight: 32, backgroundColor: props.searchActive ? palette.mintPale : "transparent", borderRadius: 14 }}>
           <div style={{ maxWidth: "82%", paddingTop: 11, paddingBottom: 11, paddingLeft: 17, paddingRight: 17, borderRadius: 18, backgroundColor: palette.user }}>
-            <text style={{ userSelect: "text", fontSize: 14, lineHeight: 23, color: palette.body }}>{item.content}</text>
+            <text highlight={props.searchQuery ? { query: props.searchQuery } : null} style={{ userSelect: "text", fontSize: 14, lineHeight: 23, color: palette.body }}>{item.content}</text>
           </div>
-          <Button testId={`copy-user-${item.id}`} type="text" size="small" aria-label={copied.value ? "已复制用户消息" : "复制用户消息"}
-            onClick={copy} icon={<Glyph name={copied.value ? "check" : "copy"} size={13} />}
-            style={{ height: 28, marginTop: 4, paddingLeft: 8, paddingRight: 8, fontSize: 12 }}>
-            {{ default: () => <text>{copied.value ? "已复制" : "复制"}</text> }}
-          </Button>
+          <div style={{ display: "flex", flexDirection: "row", gap: 4, marginTop: 4 }}>
+            <Button testId={`edit-user-${item.id}`} type="text" size="small" aria-label="编辑并重发用户消息"
+              onClick={() => props.onEdit(item)} style={{ height: 28, paddingLeft: 8, paddingRight: 8, fontSize: 12 }}>
+              {{ default: () => <text>编辑</text> }}
+            </Button>
+            <Button testId={`copy-user-${item.id}`} type="text" size="small" aria-label={copied.value ? "已复制用户消息" : "复制用户消息"}
+              onClick={copy} icon={<Glyph name={copied.value ? "check" : "copy"} size={13} />}
+              style={{ height: 28, paddingLeft: 8, paddingRight: 8, fontSize: 12 }}>
+              {{ default: () => <text>{copied.value ? "已复制" : "复制"}</text> }}
+            </Button>
+          </div>
         </div>
       }
-      return <div testId={`message-${item.id}`} style={{ display: "flex", flexDirection: "row", width: "100%", paddingTop: 14, paddingBottom: 14, paddingLeft: 32, paddingRight: 32 }}>
+      return <div testId={`message-${item.id}`} style={{ display: "flex", flexDirection: "row", width: "100%", paddingTop: 14, paddingBottom: 14, paddingLeft: 32, paddingRight: 32, backgroundColor: props.searchActive ? palette.mintPale : "transparent", borderRadius: 14 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, width: 34, height: 34, borderRadius: 17, backgroundColor: palette.lavender }}>
           <Icon name="Rabbit" size={29} />
         </div>
@@ -137,10 +164,10 @@ const MessageRow = defineComponent({
               <Glyph name={showReasoning.value ? "down" : "right"} size={12} color={palette.muted} />
               <text style={{ fontSize: 12, fontWeight: 700, color: palette.muted }}>思考过程</text>
             </div>
-            {showReasoning.value ? <div style={{ marginTop: 6 }}><markdown style={{ userSelect: "text" }} source={item.reasoning} theme={reasoningTheme} onLinkClick={openLink} /></div> : null}
+            {showReasoning.value ? <div style={{ marginTop: 6 }}><markdown style={{ userSelect: "text" }} source={item.reasoning} theme={reasoningTheme} highlight={props.searchQuery ? { query: props.searchQuery } : null} onLinkClick={openLink} /></div> : null}
           </div> : null}
           {item.content || item.status !== "done" ? <div style={{ display: "flex", flexDirection: "column", marginTop: 8, padding: 16, borderRadius: 17, backgroundColor: palette.paper }}>
-            {item.content ? <MessageContent source={resolveImages(item.content, props.cwd)} onLinkClick={openLink} /> : null}
+            {item.content ? <MessageContent source={resolveImages(item.content, props.cwd)} query={props.searchQuery} onLinkClick={openLink} /> : null}
             {!item.content && item.status === "streaming" ? <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 32 }}>
               <Icon name="Star" size={23} />
               <text style={{ fontSize: 13, color: palette.muted }}>{item.reasoning ? "正在整理回答…" : "等待 dsh 返回…"}</text>
@@ -151,7 +178,7 @@ const MessageRow = defineComponent({
             {item.status === "stopped" ? <text style={{ marginTop: item.content ? 10 : 0, fontSize: 12, color: palette.muted }}>已停止生成{!item.content ? "，这次没有收到内容" : "，已保留当前内容"}。</text> : null}
             {item.status === "done" || item.status === "stopped" ? <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6 }}>
               {item.content ? <Button type="text" size="small" onClick={copy} icon={<Glyph name={copied.value ? "check" : "copy"} size={13} />} style={{ height: 28, paddingLeft: 8, paddingRight: 8, fontSize: 12 }}>{{ default: () => <text>{copied.value ? "已复制" : "复制"}</text> }}</Button> : null}
-              {props.latest ? <Button testId="retry" type="text" size="small" onClick={props.onRetry} icon={<Glyph name="refresh" size={13} />} style={{ height: 28, paddingLeft: 8, paddingRight: 8, fontSize: 12 }}>{{ default: () => <text>重试</text> }}</Button> : null}
+              {props.latest ? <Button testId="retry" type="text" size="small" onClick={props.onRetry} icon={<Glyph name="refresh" size={13} />} style={{ height: 28, paddingLeft: 8, paddingRight: 8, fontSize: 12 }}>{{ default: () => <text>重新生成</text> }}</Button> : null}
               <div style={{ flexGrow: 1 }} />
               {item.usage ? <text style={{ fontSize: 10, color: palette.muted }}>{`${item.usage.totalTokens} / ${item.usage.contextSize ?? "—"} tokens`}</text> : null}
             </div> : null}
@@ -166,10 +193,11 @@ export const Transcript = defineComponent({
   props: {
     conversation: { type: Object as PropType<Conversation>, required: true },
     onRetry: { type: Function as PropType<() => void>, required: true },
+    onEdit: { type: Function as PropType<(message: ChatMessage) => void>, required: true },
     onPrompt: { type: Function as PropType<(text: string) => void>, required: true },
     onLoadOlder: { type: Function as PropType<() => void>, required: true },
   },
-  setup(props) {
+  setup(props, { expose }) {
     const expandedGroups = ref(new Set<string>())
     const rows = computed(() => groupTranscript(props.conversation.items).flatMap(row =>
       row.kind === "process" && expandedGroups.value.has(row.id) ? [row, ...row.items] : [row]))
@@ -181,6 +209,39 @@ export const Transcript = defineComponent({
     }
     const list = ref<VirtualListInstance | null>(null)
     const { renderer } = useGpuix()
+    const searchQuery = ref("")
+    const searchIndex = ref(0)
+    const searchRevision = ref(0)
+    const searchAutoFocus = ref(false)
+    expose({ focusSearch: () => { searchAutoFocus.value = true; searchRevision.value++ } })
+    const searchMatches = computed(() => {
+      const keyword = searchQuery.value.trim().toLocaleLowerCase()
+      if (!keyword) return [] as ChatMessage[]
+      return props.conversation.items.filter((item): item is ChatMessage => item.kind === "message"
+        && `${item.content}\n${item.reasoning ?? ""}`.toLocaleLowerCase().includes(keyword))
+    })
+    const activeSearchId = computed(() => searchMatches.value[searchIndex.value]?.id)
+    async function locateSearchResult() {
+      const id = activeSearchId.value
+      if (!id) return
+      await nextTick()
+      let index = rows.value.findIndex(row => row.id === id || (row.kind === "process" && row.items.some(item => item.id === id)))
+      const group = rows.value[index]
+      if (group?.kind === "process" && !expandedGroups.value.has(group.id)) {
+        expandedGroups.value = new Set(expandedGroups.value).add(group.id)
+        await nextTick()
+      }
+      index = rows.value.findIndex(row => row.id === id)
+      if (index >= 0) list.value?.scrollToItem(index)
+    }
+    function navigateSearch(step: number) {
+      const count = searchMatches.value.length
+      if (!count) return
+      searchIndex.value = (searchIndex.value + step + count) % count
+      void locateSearchResult()
+    }
+    watch(searchQuery, () => { searchIndex.value = 0; void locateSearchResult() })
+    watch(searchMatches, matches => { searchIndex.value = Math.min(searchIndex.value, Math.max(0, matches.length - 1)) })
     let visible = { start: 0, end: 0 }
     const heights = new Map<string, number>()
     const bar = ref({ total: 1, viewport: 1, offset: 0 })
@@ -218,6 +279,8 @@ export const Transcript = defineComponent({
     onMounted(() => { timer = setInterval(updateScrollbar, 100) })
     onBeforeUnmount(() => { if (timer) clearInterval(timer) })
     watch(() => props.conversation.id, () => {
+      searchQuery.value = ""
+      searchIndex.value = 0
       expandedGroups.value = new Set()
       heights.clear()
       visible = { start: 0, end: 0 }
@@ -239,6 +302,16 @@ export const Transcript = defineComponent({
       const conversation = props.conversation
       if (!rows.value.length && conversation.historyCached) return <EmptyState onPrompt={props.onPrompt} />
       return <div testId="message-list" style={{ display: "flex", flexDirection: "column", flexGrow: 1, flexBasis: 0, minHeight: 0, width: "100%" }}>
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 0, paddingLeft: 32, paddingRight: 24, paddingTop: 6 }}>
+          <Input key={searchRevision.value} autoFocus={searchAutoFocus.value} testId="conversation-search" size="small" allowClear placeholder="搜索当前对话…" modelValue={searchQuery.value}
+            prefix={<Glyph name="search" size={13} color={palette.muted} />} onChange={(value: string) => { searchQuery.value = value }}
+            onSubmit={() => navigateSearch(1)} style={{ flexGrow: 1, flexBasis: 0, minWidth: 0 }} />
+          {searchQuery.value ? <text style={{ fontSize: 11, color: palette.muted, whiteSpace: "nowrap" }}>{searchMatches.value.length ? `${searchIndex.value + 1} / ${searchMatches.value.length} 条` : "0 条"}</text> : null}
+          <Button type="text" size="small" aria-label="上一条匹配" disabled={!searchMatches.value.length} onClick={() => navigateSearch(-1)}
+            icon={<Glyph name="up" size={13} />} style={{ width: 28, paddingLeft: 0, paddingRight: 0 }} />
+          <Button testId="next-search-result" type="text" size="small" aria-label="下一条匹配" disabled={!searchMatches.value.length} onClick={() => navigateSearch(1)}
+            icon={<Glyph name="down" size={13} />} style={{ width: 28, paddingLeft: 0, paddingRight: 0 }} />
+        </div>
         {conversation.historyHasMore ? <div style={{ display: "flex", justifyContent: "center", flexShrink: 0, marginTop: 10 }}>
           <Button testId="load-older" type="text" size="small" loading={conversation.historyLoading} onClick={props.onLoadOlder}>
             {{ default: () => <text>加载更早消息</text> }}
@@ -269,7 +342,8 @@ export const Transcript = defineComponent({
               </div>
             </div>
             if (item.kind === "tool") return <ToolRow key={item.id} activity={item} />
-            return <MessageRow key={item.id} message={item} cwd={conversation.cwd} latest={index === rows.value.length - 1} onRetry={props.onRetry} />
+            return <MessageRow key={item.id} message={item} cwd={conversation.cwd} latest={index === rows.value.length - 1} onRetry={props.onRetry} onEdit={props.onEdit}
+              searchQuery={searchQuery.value} searchActive={activeSearchId.value === item.id} />
           }} />
         {bar.value.total > bar.value.viewport ? <div role="scrollbar" aria-label="对话滚动条" aria-orientation="vertical" onMouseDown={navigate} onMouseMove={(event: EventPayload) => { if (event.pressedButton === 0) navigate(event) }}
           style={{ width: 14, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", backgroundColor: "#eee9df", cursor: "pointer" }}>
